@@ -1,0 +1,23 @@
+# Rust build output
+/target/
+
+# wasm-pack output and generated browser package files
+/pkg/
+/web/pkg/
+
+# Local development artifacts
+.DS_Store
+*.swp
+*.swo
+
+# Browser test and coverage output
+/coverage/
+/playwright-report/
+/test-results/
+
+# Editor and environment files
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
