@@ -118,6 +118,7 @@ fn adds_reopens_and_inspects_native_annotation_objects() {
 
     let annotations = document.list_annotations().expect("annotations list");
     assert_eq!(annotations.len(), 3);
+    assert!(annotations.iter().all(|annotation| annotation.page_index == 0));
     assert!(
         annotations
             .iter()
@@ -151,6 +152,17 @@ fn adds_reopens_and_inspects_native_annotation_objects() {
     for entry in entries {
         let annotation_id = entry.as_reference().expect("annotation is indirect");
         let dictionary = reopened.get_dictionary(annotation_id).expect("annotation dictionary");
+        if dictionary.get(b"Subtype").and_then(Object::as_name).ok() != Some(b"Text".as_slice()) {
+            assert_eq!(
+                dictionary
+                    .get(b"P")
+                    .expect("page association")
+                    .as_reference()
+                    .expect("page reference"),
+                page_id,
+                "editor annotations must point back to their page"
+            );
+        }
         subtypes.push(
             dictionary.get(b"Subtype").expect("subtype").as_name().expect("subtype name").to_vec(),
         );
