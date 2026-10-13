@@ -59,23 +59,24 @@ The native workspace must build and test without this crate. WASM-specific tests
 
 ## 4. WASM interface strategy
 
-The initial interface should favor coarse, explicit operations over exposing Rust internals:
+The current browser-facing interface favors coarse, explicit operations over exposing Rust internals:
 
 ```text
-open_document(pdf_bytes, options) -> document_descriptor
-get_page_info(document, page_index) -> page_info
-apply_operations(document, operations_json) -> operation_report
-export_document(document, export_options) -> pdf_bytes
-close_document(document)
+await initializeWasm()
+document = await openPdfDocument(pdf_bytes)
+document.pageCount() -> number
+document.pageInfo(page_index) -> plain page-info object
+document.save() -> Uint8Array
+document.dispose() -> void
 ```
 
-The exact function names may change during implementation, but the rules are stable:
+The exact bridge implementation may evolve, but the rules are stable:
 
 - Input PDF bytes cross the boundary once where practical; output bytes cross it once on export.
 - Commands and reports use versioned JSON with integer page indices and PDF-space coordinates.
 - Binary data uses `Uint8Array`/`ArrayBuffer`; do not base64-encode full PDFs unless a browser API requires it.
 - Rust owns document validity and operation ordering. JavaScript may optimistically render interaction feedback but must reconcile with the Rust operation report.
-- Avoid returning live Rust object graphs or passing DOM objects into WASM.
+- Avoid returning live Rust object graphs or passing DOM objects into WASM. The bridge copies page scalars into a plain object and explicitly frees the temporary Rust page-info wrapper.
 - Keep the boundary small enough that it can be tested with malformed JSON, missing fields, large values, and stale annotation IDs.
 
 Suggested error envelope:
@@ -100,7 +101,7 @@ The frontend uses native ES modules and should keep modules narrow:
 - `state/store.js`: immutable-ish application/session state, selection, active tool, and dirty status.
 - `pdf/document-session.js`: local file lifecycle, WASM document handle, operation queue, export requests, and cleanup.
 - `pdf/pdfjs-viewer.js`: PDF.js loading, page rendering, text-layer integration, viewport transforms, and visible-page management.
-- `pdf/wasm-client.js`: the only module that knows the WASM public API and error envelope.
+- `wasm-bridge.js`: the only module that knows the generated WASM public API and error envelope; it validates JavaScript inputs and owns document disposal.
 - `annotations/model.js`: UI projections of Rust annotation data; no PDF byte mutation.
 - `annotations/interaction.js`: pointer, keyboard, selection, drag, resize, and freehand capture.
 - `annotations/overlay.js`: SVG/canvas/HTML overlay rendering above PDF.js pages.
@@ -109,7 +110,7 @@ The frontend uses native ES modules and should keep modules narrow:
 - `platform/storage.js`: optional local preferences only; never persist document bytes or telemetry without a future, explicit design decision.
 - `pwa/register-service-worker.js`: service-worker registration and update UX.
 
-No module other than `wasm-client.js` calls the WASM exports directly. No module other than `pdfjs-viewer.js` depends on PDF.js internals. The UI overlay is a view of the Rust-backed annotation state, not a replacement source of truth.
+No module other than `wasm-bridge.js` calls the WASM exports directly. No module other than `pdfjs-viewer.js` depends on PDF.js internals. The UI overlay is a view of the Rust-backed annotation state, not a replacement source of truth.
 
 ## 6. PDF coordinate conventions
 

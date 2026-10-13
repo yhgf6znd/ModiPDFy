@@ -35,7 +35,7 @@ impl Default for DocumentLoadOptions {
 
 /// An in-memory PDF document owned by the native core.
 ///
-/// The source bytes are copied on load and are never mutated. Until a future core editing
+/// The source bytes are retained on load and are never mutated. Until a future core editing
 /// operation marks the document dirty, saving returns those original bytes unchanged. This
 /// avoids an unnecessary rewrite and is especially important for signed or incrementally
 /// updated documents.
@@ -51,8 +51,30 @@ impl PdfDocument {
         Self::from_bytes_with_options(bytes, DocumentLoadOptions::default())
     }
 
+    /// Take ownership of PDF bytes and load them without a second source-byte copy.
+    ///
+    /// This is the preferred entry point for adapters that already own a byte buffer, such as
+    /// the WASM boundary after converting a JavaScript `Uint8Array` once.
+    pub fn from_owned_bytes(bytes: Vec<u8>) -> PdfResult<Self> {
+        Self::from_owned_bytes_with_options(bytes, DocumentLoadOptions::default())
+    }
+
     /// Load a PDF from bytes using explicit parser and resource limits.
     pub fn from_bytes_with_options(bytes: &[u8], options: DocumentLoadOptions) -> PdfResult<Self> {
+        let document = Self::parse_bytes(bytes, options)?;
+        Ok(Self { document, source_bytes: bytes.to_vec(), dirty: false })
+    }
+
+    /// Take ownership of PDF bytes and load them with explicit parser and resource limits.
+    pub fn from_owned_bytes_with_options(
+        bytes: Vec<u8>,
+        options: DocumentLoadOptions,
+    ) -> PdfResult<Self> {
+        let document = Self::parse_bytes(&bytes, options)?;
+        Ok(Self { document, source_bytes: bytes, dirty: false })
+    }
+
+    fn parse_bytes(bytes: &[u8], options: DocumentLoadOptions) -> PdfResult<Document> {
         if bytes.is_empty() {
             return Err(PdfError::EmptyInput);
         }
@@ -73,7 +95,7 @@ impl PdfDocument {
                 .map_err(|_| PdfError::ParserPanicked)?
                 .map_err(|error| PdfError::MalformedPdf { message: error.to_string() })?;
 
-        Ok(Self { document: parsed, source_bytes: bytes.to_vec(), dirty: false })
+        Ok(parsed)
     }
 
     /// Return the number of pages in document order.

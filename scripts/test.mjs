@@ -34,8 +34,12 @@ run("wasm-pack", [
   "modipdfy_wasm",
   "--no-pack",
 ]);
+run(process.execPath, ["scripts/wasm-bridge-test.mjs"]);
 run(process.execPath, ["--check", "web/js/main.js"]);
 run(process.execPath, ["--check", "web/js/wasm-client.js"]);
+run(process.execPath, ["--check", "web/js/wasm-bridge.js"]);
+run(process.execPath, ["--check", "tests/browser/pdf-fixture.js"]);
+run(process.execPath, ["--check", "tests/browser/wasm-bridge.test.js"]);
 run(process.execPath, ["--check", "web/sw.js"]);
 run(process.execPath, ["--check", "scripts/build-web.mjs"]);
 run(process.execPath, ["--check", "scripts/serve.mjs"]);

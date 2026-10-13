@@ -5,6 +5,7 @@ const ASSETS = [
   "./css/main.css",
   "./js/main.js",
   "./js/wasm-client.js",
+  "./js/wasm-bridge.js",
   "./manifest.webmanifest",
   "./pkg/modipdfy_wasm.js",
   "./pkg/modipdfy_wasm_bg.wasm",

@@ -92,7 +92,16 @@ npm run preview
 npm test
 ```
 
-`npm run dev` builds the WASM package and serves `web/` at localhost. `npm run preview` serves the already-built `dist/` directory. `npm test` runs formatting, clippy, native tests, the WASM build, JavaScript syntax checks, and the production static build. The scripts use only Node.js built-ins and do not add runtime frontend dependencies.
+`npm run dev` builds the WASM package and serves `web/` at localhost. `npm run preview` serves the already-built `dist/` directory. `npm test` runs formatting, clippy, native tests, the WASM build, Node-executed bridge contract tests, JavaScript syntax checks, and the production static build. The scripts use only Node.js built-ins and do not add runtime frontend dependencies.
+
+The browser integration harness is [`tests/browser/index.html`](../tests/browser/index.html). To run it in a browser, build the project, serve the repository root, and open `/tests/browser/index.html`:
+
+```sh
+npm run build
+node scripts/serve.mjs .
+```
+
+It exercises initialization, typed-array PDF loading, page count, page dimensions, export, malformed-input errors, explicit disposal, and repeated open/close operations. The browser harness uses the same [`web/js/wasm-bridge.js`](../web/js/wasm-bridge.js) module used by the application.
 
 ## Test expectations
 

@@ -1,11 +1,15 @@
-/**
- * The only browser module that knows the generated wasm-pack API.
- */
-export async function loadWasm() {
-  const wasmModule = await import("../pkg/modipdfy_wasm.js");
-  await wasmModule.default();
+import {
+  getVersion,
+  initializeWasm,
+  openPdfDocument,
+  translateWasmError,
+  WasmBridgeError,
+} from "./wasm-bridge.js";
 
-  return {
-    getVersion: wasmModule.get_version,
-  };
+export { getVersion, initializeWasm, openPdfDocument, translateWasmError, WasmBridgeError };
+
+/** Backward-compatible loader used by the current application shell. */
+export async function loadWasm() {
+  await initializeWasm();
+  return { getVersion };
 }
