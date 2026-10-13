@@ -1,10 +1,12 @@
 # Rust build output
 /target/
 /dist/
+/node_modules/
 
 # wasm-pack output and generated browser package files
 /pkg/
 /web/pkg/
+/web/pdfjs/
 **/pkg/
 
 # Local development artifacts
