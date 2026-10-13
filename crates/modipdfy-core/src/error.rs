@@ -30,6 +30,22 @@ pub enum PdfError {
     ObjectInspection { object_id: PdfObjectId, message: String },
     /// The document could not be serialized.
     Serialization { message: String },
+    /// An editor identifier is missing, malformed, or too long.
+    InvalidAnnotationId { value: String },
+    /// Annotation geometry contains invalid values or lies outside the page.
+    InvalidAnnotationGeometry { message: String },
+    /// Annotation style contains an unsupported or unsafe value.
+    InvalidAnnotationStyle,
+    /// Annotation-specific payload is empty, malformed, or over its limit.
+    InvalidAnnotationContent { message: String },
+    /// An existing annotation already uses the requested editor identifier.
+    DuplicateAnnotationId { editor_id: String },
+    /// An annotation could not be decoded from a native PDF dictionary.
+    AnnotationParse { message: String },
+    /// The requested editor identifier does not exist.
+    AnnotationNotFound { editor_id: String },
+    /// Editing or rewriting would invalidate a detected document signature.
+    SignedDocument { operation: &'static str },
 }
 
 impl Display for PdfError {
@@ -63,6 +79,28 @@ impl Display for PdfError {
             ),
             Self::Serialization { message } => {
                 write!(formatter, "could not serialize PDF: {message}")
+            }
+            Self::InvalidAnnotationId { value } => {
+                write!(formatter, "invalid annotation editor id: {value:?}")
+            }
+            Self::InvalidAnnotationGeometry { message } => {
+                write!(formatter, "invalid annotation geometry: {message}")
+            }
+            Self::InvalidAnnotationStyle => formatter.write_str("invalid annotation style"),
+            Self::InvalidAnnotationContent { message } => {
+                write!(formatter, "invalid annotation content: {message}")
+            }
+            Self::DuplicateAnnotationId { editor_id } => {
+                write!(formatter, "annotation editor id already exists: {editor_id}")
+            }
+            Self::AnnotationParse { message } => {
+                write!(formatter, "could not parse annotation: {message}")
+            }
+            Self::AnnotationNotFound { editor_id } => {
+                write!(formatter, "annotation editor id was not found: {editor_id}")
+            }
+            Self::SignedDocument { operation } => {
+                write!(formatter, "cannot {operation} a document containing a PDF signature")
             }
         }
     }

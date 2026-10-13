@@ -26,14 +26,14 @@ Exit evidence: a cached app opens and renders single/multipage fixtures with the
 
 ## Phase 2 — annotation foundation
 
-Status: not started.
+Status: in progress — native annotation engine delivered.
 
-- Core annotation model, stable IDs, operation batches, validation, and undo/redo semantics.
-- Object-preserving PDF export infrastructure using `lopdf`.
+- Core annotation model, stable IDs, validation, and ID-based removal/listing for Text/FreeText, Ink, and Highlight.
+- Object-preserving PDF annotation export infrastructure using `lopdf`, including native appearance streams and opacity states.
 - Generic overlay rendering and canonical PDF-to-viewport transform tests.
 - Export/reopen fixtures for unrotated and rotated/cropped pages.
 
-Exit evidence: a no-op export preserves renderable content, and a test annotation survives export/reopen without rasterizing the page.
+Exit evidence in progress: native tests add, save, reopen, and inspect all three annotation types, preserve page content and existing annotations, and block signed-document mutation. Operation batches, undo/redo, browser wiring, and independent-reader coverage remain open.
 
 ## Phase 3 — initial annotation tools
 

@@ -3,8 +3,9 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use lopdf::{Document, LoadOptions};
 
 use crate::{
-    DocumentMetadata, PageDimensions, PageInfo, PdfError, PdfObjectId, PdfObjectInfo, PdfResult,
-    inspect, metadata, page, serialization,
+    Annotation, AnnotationId, DocumentMetadata, HighlightAnnotation, InkAnnotation, PageDimensions,
+    PageInfo, PdfError, PdfObjectId, PdfObjectInfo, PdfResult, TextAnnotation, annotation, inspect,
+    metadata, page, serialization,
 };
 
 /// Default maximum input size for one in-memory PDF document.
@@ -142,7 +143,133 @@ impl PdfDocument {
         if !self.dirty {
             return Ok(self.source_bytes.clone());
         }
+        self.ensure_editable("rewrite")?;
         serialization::serialize(&mut self.document)
+    }
+
+    /// Add a native PDF FreeText annotation and return its editor identifier.
+    pub fn add_text_annotation(&mut self, annotation: TextAnnotation) -> PdfResult<AnnotationId> {
+        self.ensure_editable("edit")?;
+        let page = self.page_info(annotation.page_index)?;
+        annotation::validate_text(&annotation, &page)?;
+        self.ensure_unique_annotation_id(&annotation.editor_id)?;
+        let object = annotation::build_text_object(&mut self.document, &annotation, page.object_id);
+        let object_id = self.document.add_object(object);
+        if let Err(error) =
+            annotation::append_annotation_reference(&mut self.document, page.object_id, object_id)
+        {
+            let _ = self.document.remove_object(&object_id);
+            return Err(error);
+        }
+        self.dirty = true;
+        Ok(annotation.editor_id)
+    }
+
+    /// Add a native PDF Ink annotation and return its editor identifier.
+    pub fn add_ink_annotation(&mut self, annotation: InkAnnotation) -> PdfResult<AnnotationId> {
+        self.ensure_editable("edit")?;
+        let page = self.page_info(annotation.page_index)?;
+        annotation::validate_ink(&annotation, &page)?;
+        self.ensure_unique_annotation_id(&annotation.editor_id)?;
+        let object = annotation::build_ink_object(&mut self.document, &annotation, page.object_id);
+        let object_id = self.document.add_object(object);
+        if let Err(error) =
+            annotation::append_annotation_reference(&mut self.document, page.object_id, object_id)
+        {
+            let _ = self.document.remove_object(&object_id);
+            return Err(error);
+        }
+        self.dirty = true;
+        Ok(annotation.editor_id)
+    }
+
+    /// Add a native PDF Highlight annotation with standards-compliant QuadPoints.
+    pub fn add_highlight_annotation(
+        &mut self,
+        annotation: HighlightAnnotation,
+    ) -> PdfResult<AnnotationId> {
+        self.ensure_editable("edit")?;
+        let page = self.page_info(annotation.page_index)?;
+        annotation::validate_highlight(&annotation, &page)?;
+        self.ensure_unique_annotation_id(&annotation.editor_id)?;
+        let object =
+            annotation::build_highlight_object(&mut self.document, &annotation, page.object_id);
+        let object_id = self.document.add_object(object);
+        if let Err(error) =
+            annotation::append_annotation_reference(&mut self.document, page.object_id, object_id)
+        {
+            let _ = self.document.remove_object(&object_id);
+            return Err(error);
+        }
+        self.dirty = true;
+        Ok(annotation.editor_id)
+    }
+
+    /// Remove one editor-owned or imported supported annotation by its `/NM` ID.
+    pub fn remove_annotation(&mut self, editor_id: &AnnotationId) -> PdfResult<()> {
+        self.ensure_editable("edit")?;
+        let page_ids = self.document.get_pages().into_values().collect::<Vec<_>>();
+        for (page_index, page_id) in page_ids.into_iter().enumerate() {
+            let (removed, object_id) = annotation::remove_annotation_entry(
+                &mut self.document,
+                page_id,
+                page_index,
+                editor_id,
+            )?;
+            if removed {
+                if let Some(object_id) = object_id {
+                    self.document.remove_object(&object_id).map_err(|error| {
+                        PdfError::AnnotationParse { message: error.to_string() }
+                    })?;
+                }
+                self.dirty = true;
+                return Ok(());
+            }
+        }
+        Err(PdfError::AnnotationNotFound { editor_id: editor_id.to_string() })
+    }
+
+    /// List supported native annotations in page order without flattening page content.
+    pub fn list_annotations(&self) -> PdfResult<Vec<Annotation>> {
+        let mut annotations = Vec::new();
+        let mut ids = std::collections::HashSet::new();
+        for (page_number, page_id) in self.document.get_pages() {
+            for (fallback_index, (object_id, dictionary)) in
+                annotation::annotation_entries(&self.document, page_id)?.into_iter().enumerate()
+            {
+                let Some(annotation) = annotation::parse_annotation(
+                    &self.document,
+                    page_number as usize - 1,
+                    object_id,
+                    &dictionary,
+                    fallback_index,
+                )?
+                else {
+                    continue;
+                };
+                if !ids.insert(annotation.editor_id.clone()) {
+                    return Err(PdfError::DuplicateAnnotationId {
+                        editor_id: annotation.editor_id.to_string(),
+                    });
+                }
+                annotations.push(annotation);
+            }
+        }
+        Ok(annotations)
+    }
+
+    fn ensure_unique_annotation_id(&self, editor_id: &AnnotationId) -> PdfResult<()> {
+        if annotation::has_annotation_id(&self.document, editor_id)? {
+            return Err(PdfError::DuplicateAnnotationId { editor_id: editor_id.to_string() });
+        }
+        Ok(())
+    }
+
+    fn ensure_editable(&self, operation: &'static str) -> PdfResult<()> {
+        if self.metadata().signature_count > 0 {
+            return Err(PdfError::SignedDocument { operation });
+        }
+        Ok(())
     }
 
     // Reserved for future core editing operations. Keeping the dirty transition here prevents

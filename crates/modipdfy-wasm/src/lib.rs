@@ -207,6 +207,14 @@ fn pdf_error(error: PdfError) -> JsValue {
             ("object_inspection_failed", false)
         }
         PdfError::Serialization { .. } => ("serialization_failed", false),
+        PdfError::InvalidAnnotationId { .. }
+        | PdfError::InvalidAnnotationGeometry { .. }
+        | PdfError::InvalidAnnotationStyle
+        | PdfError::InvalidAnnotationContent { .. }
+        | PdfError::DuplicateAnnotationId { .. }
+        | PdfError::AnnotationNotFound { .. } => ("invalid_annotation", true),
+        PdfError::AnnotationParse { .. } => ("annotation_parse_failed", false),
+        PdfError::SignedDocument { .. } => ("signed_document", false),
     };
     structured_error(code, &error.to_string(), recoverable)
 }

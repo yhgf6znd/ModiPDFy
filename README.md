@@ -11,7 +11,7 @@ The initial release is intentionally focused:
 - create handwritten signatures; and
 - export a modified PDF without uploading the source document.
 
-Editing existing PDF text and images, compression, OCR, and cryptographic signatures are future work. The current browser slice provides local multipage viewing, zoom, navigation, PDF.js text selection, and rotation-aware geometry scaffolding; annotation mutation and export are next.
+Editing existing PDF text and images, compression, OCR, and cryptographic signatures are future work. The current core provides object-preserving Text/FreeText, Ink, and Highlight annotation export; browser annotation tools and operation history are next.
 
 ## Architecture at a glance
 
@@ -63,4 +63,4 @@ The application has no document server. A release must not send PDF bytes, annot
 
 ## Status
 
-Initial Rust/WASM and framework-free web viewer with a native lopdf-backed document engine. PDF annotations and export mutation are not implemented yet.
+Initial Rust/WASM and framework-free web viewer with a native lopdf-backed document engine and tested native annotation export for Text, Ink, and Highlight PDFs.

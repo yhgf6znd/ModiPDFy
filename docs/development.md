@@ -107,7 +107,7 @@ It exercises initialization, typed-array PDF loading, page count, page dimension
 
 At minimum, a pull request that changes PDF behavior should include:
 
-- native unit/integration tests for the changed Rust behavior;
+- native unit/integration tests for the changed Rust behavior, including lopdf annotation dictionary inspection and reopenability;
 - a fixture-based export/reopen test when PDF bytes change;
 - a WASM boundary test when the wire contract changes; and
 - a browser test when interaction, rendering, file I/O, or service-worker behavior changes.

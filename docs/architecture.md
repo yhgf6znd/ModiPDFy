@@ -221,11 +221,15 @@ License compatibility does not authorize copying code or assets without attribut
 
 ## 13. Current document-engine limitations
 
-The initial `modipdfy-core` engine intentionally supports inspection and unchanged save/reopen, not annotations or other edits:
+The current `modipdfy-core` engine supports inspection plus native Text/FreeText, Ink, and Highlight annotation mutation:
 
 - Encrypted documents are detected and reported. Documents that lopdf can open with no password may be inspected; password-protected documents are not given a browser password flow yet.
 - Malformed input is rejected with a typed error when lopdf cannot recover it. Lenient parsing may accept some non-conforming PDFs, so successful loading is not a promise that every producer or reader will accept the file.
 - An input-size limit and lopdf per-stream decompression limit reduce denial-of-service exposure, but they are not a complete PDF security boundary.
 - A `/Prev` trailer entry is reported as an incremental-update warning. Untouched saves return the original bytes, while any future rewrite must be treated as potentially changing incremental-history semantics.
 - Signature dictionaries, signature fields, and `/ByteRange` markers are detected when present. Untouched saves preserve the original bytes; any future rewrite must not claim that a cryptographic signature remains valid.
-- `save_to_bytes` currently avoids rewriting an unmodified document. Future mutation APIs must mark the document dirty and route serialization through lopdf while preserving unrelated objects.
+- Annotation mutation appends native indirect annotation dictionaries to the page `/Annots` array, writes `/AP` Form XObjects, and marks the document dirty. It does not rasterize page content.
+- Supported annotation editor IDs are stored in `/NM`; unsupported existing annotation subtypes are preserved but are not returned by `list_annotations`.
+- Dirty saves of documents containing detected PDF signatures are blocked. Untouched signed inputs can still be returned byte-for-byte.
+- Ink and highlight appearance streams use standard PDF graphics and ExtGState opacity, while text appearances use the standard Helvetica Type1 font. Unicode text is preserved in `/Contents`, but the appearance fallback is limited by the standard font and needs a future embedded-font policy for full glyph coverage.
+- Incremental-update preservation, annotation appearance garbage collection after removal, and operation-history/undo semantics remain future work.

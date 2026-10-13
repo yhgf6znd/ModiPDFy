@@ -4,6 +4,7 @@
 //! in the separate WASM adapter. The public API accepts byte slices and has no filesystem or
 //! browser dependency.
 
+mod annotation;
 mod document;
 mod error;
 mod inspect;
@@ -14,6 +15,11 @@ mod serialization;
 /// The application version shared by native code and the browser adapter.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub use annotation::{
+    Annotation, AnnotationContent, AnnotationId, AnnotationStyle, AnnotationType,
+    HighlightAnnotation, InkAnnotation, MAX_ANNOTATION_TEXT_BYTES, MAX_HIGHLIGHT_QUADS,
+    MAX_INK_POINTS, PdfColor, PdfPoint, PdfQuad, TextAnnotation,
+};
 pub use document::{
     DEFAULT_MAX_DECOMPRESSED_STREAM_BYTES, DEFAULT_MAX_INPUT_BYTES, DocumentLoadOptions,
     PdfDocument,
