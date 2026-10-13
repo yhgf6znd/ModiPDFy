@@ -43,7 +43,7 @@ The browser shell owns interaction state and rendering lifecycle. The Rust layer
 
 ## 3. Rust crate boundaries
 
-The planned Cargo workspace has these crates:
+The planned Cargo workspace has these crates. The current scaffold implements `modipdfy-core` and `modipdfy-wasm`; the PDF adapter is intentionally deferred until PDF editing work begins.
 
 ### `modipdfy-core`
 

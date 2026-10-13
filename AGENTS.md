@@ -33,7 +33,7 @@ tests/
 docs/
 ```
 
-Names may evolve, but responsibilities must not collapse into a single crate or a single JavaScript module. Do not create implementation files merely to satisfy this layout while the project is still in its documentation phase.
+Names may evolve, but responsibilities must not collapse into a single crate or a single JavaScript module. Do not create placeholder implementation files merely to satisfy this layout.
 
 ## Boundary rules
 

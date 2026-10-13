@@ -38,6 +38,16 @@ The Rust core is independent of WebAssembly. `wasm-bindgen` exposes a small, ver
 - [`docs/development.md`](docs/development.md) — local workflow, testing, dependency review, and release checks.
 - [`docs/roadmap.md`](docs/roadmap.md) — staged delivery plan and unresolved risks.
 
+## Build the scaffold
+
+After installing Rust, wasm-pack, and Node.js, build the complete static application with:
+
+```sh
+npm run build
+```
+
+The deployable files are written to `dist/`. The command builds the Rust/WASM package, copies the framework-free frontend, and keeps all asset references relative so the result works at a GitHub Pages project subpath. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
+
 ## Planned technology
 
 - Rust with `lopdf` for PDF parsing and modification.
@@ -53,4 +63,4 @@ The application has no document server. A release must not send PDF bytes, annot
 
 ## Status
 
-Architecture documentation phase. The next implementation milestone is a minimal Rust workspace and browser shell that can load and render a local PDF, without adding annotation editing yet.
+Initial Rust/WASM and framework-free web scaffold. PDF parsing, rendering, and annotation editing are not implemented yet.

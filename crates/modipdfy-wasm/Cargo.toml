@@ -1,0 +1,18 @@
+[package]
+name = "modipdfy-wasm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "WebAssembly adapter for ModiPDFy"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+modipdfy-core = { path = "../modipdfy-core" }
+wasm-bindgen = "=0.2.129"
+
+[lints]
+workspace = true

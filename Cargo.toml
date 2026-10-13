@@ -1,0 +1,19 @@
+[workspace]
+members = [
+    "crates/modipdfy-core",
+    "crates/modipdfy-wasm",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+license = "MIT"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"

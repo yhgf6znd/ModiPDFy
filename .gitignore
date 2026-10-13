@@ -1,9 +1,11 @@
 # Rust build output
 /target/
+/dist/
 
 # wasm-pack output and generated browser package files
 /pkg/
 /web/pkg/
+**/pkg/
 
 # Local development artifacts
 .DS_Store

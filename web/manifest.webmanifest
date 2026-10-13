@@ -1,0 +1,10 @@
+{
+  "name": "ModiPDFy",
+  "short_name": "ModiPDFy",
+  "description": "A privacy-first PDF editor that runs in your browser.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eef2f7",
+  "theme_color": "#172033",
+  "icons": []
+}

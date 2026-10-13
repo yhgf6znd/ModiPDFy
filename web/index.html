@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#172033">
+    <meta name="description" content="A privacy-first PDF editor that runs in your browser.">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="stylesheet" href="./css/main.css">
+    <title>ModiPDFy</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="welcome-card" aria-labelledby="app-title">
+        <p class="eyebrow">Private by design</p>
+        <h1 id="app-title">ModiPDFy</h1>
+        <p class="lede">A browser-native PDF editor. Your documents stay on your device.</p>
+        <p id="status" class="status" role="status">Loading the Rust/WASM core…</p>
+        <p class="version-line">Core version: <span id="version">Loading…</span></p>
+      </section>
+    </main>
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>

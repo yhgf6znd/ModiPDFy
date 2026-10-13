@@ -4,7 +4,46 @@ This guide describes the intended workflow while ModiPDFy is being built. The re
 
 ## Prerequisites
 
-Install stable Rust and Cargo, `wasm-pack`, a current browser with WebAssembly and service-worker support, and a static local web server. Node is not required by the application architecture; if a test tool later needs Node, keep it a development-only dependency and document why.
+Install stable Rust and Cargo, `wasm-pack`, Node.js 18.19 or newer, npm, a current browser with WebAssembly and service-worker support, and Git. Node.js is a build/development tool only; the deployed `dist/` directory contains static assets and does not require Node.js.
+
+### Ubuntu
+
+```sh
+sudo apt update
+sudo apt install build-essential curl git
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup toolchain install 1.93.0
+rustup default 1.93.0
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack --version 0.14.0
+```
+
+Install Node.js 18.19 or newer using the distribution’s supported method, such as the official Node.js installer or a version manager. Confirm with `node --version` and `npm --version`.
+
+### macOS
+
+Install Xcode Command Line Tools, Git, Rust via rustup, and Node.js 18.19 or newer. Then run:
+
+```sh
+xcode-select --install
+rustup toolchain install 1.93.0
+rustup default 1.93.0
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack --version 0.14.0
+```
+
+### Windows
+
+Install Git for Windows, Node.js 18.19 or newer, and the MSVC build tools through Visual Studio or the “Desktop development with C++” workload. Install Rust with rustup using the MSVC toolchain, then run in PowerShell:
+
+```powershell
+rustup toolchain install 1.93.0
+rustup default 1.93.0-msvc
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack --version 0.14.0
+```
+
+The repository’s `rust-toolchain.toml` also selects Rust 1.93.0, rustfmt, clippy, and the WASM target when rustup is available.
 
 The Rust target used for the browser build is expected to be `wasm32-unknown-unknown`. Native tests must remain runnable without that target.
 
@@ -33,16 +72,27 @@ Do not add generated `wasm-pack` output to the source tree unless the deployment
 6. Run browser smoke tests with the network disabled after the first successful asset load.
 7. Update the relevant documentation and note any unresolved limitation in the roadmap.
 
-Illustrative commands once the workspace exists:
+The complete production build is:
+
+```sh
+npm run build
+```
+
+It runs `wasm-pack build --target web`, then copies the web shell and generated WASM files into `dist/`. The output uses relative URLs and can be uploaded directly to a static host, including a GitHub Pages project subpath.
+
+Useful commands:
 
 ```sh
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace
-wasm-pack build crates/modipdfy-wasm --target web
+wasm-pack build crates/modipdfy-wasm --target web --release --out-dir ../../web/pkg --out-name modipdfy_wasm --no-pack
+npm run dev
+npm run preview
+npm test
 ```
 
-The actual build script may wrap these commands, but it must not hide failures or download runtime assets during an offline test.
+`npm run dev` builds the WASM package and serves `web/` at localhost. `npm run preview` serves the already-built `dist/` directory. `npm test` runs formatting, clippy, native tests, the WASM build, JavaScript syntax checks, and the production static build. The scripts use only Node.js built-ins and do not add runtime frontend dependencies.
 
 ## Test expectations
 
