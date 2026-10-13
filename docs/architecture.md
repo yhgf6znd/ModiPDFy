@@ -98,7 +98,7 @@ Suggested error envelope:
 
 The frontend uses native ES modules and should keep modules narrow:
 
-- `app.js`: composition root; bootstraps the application and wires dependencies.
+- `main.js`: current composition root; bootstraps the application, toolbar, file/drop events, and service-worker registration. It can be split as the UI grows.
 - `state/store.js`: immutable-ish application/session state, selection, active tool, and dirty status.
 - `pdf/document-session.js`: local file lifecycle, WASM document handle, operation queue, export requests, and cleanup.
 - `pdf-viewer.js`: PDF.js loading, page rendering, text/annotation-layer integration, viewport transforms, and visible-page management.
@@ -111,7 +111,7 @@ The frontend uses native ES modules and should keep modules narrow:
 - `ui/toolbar.js`, `ui/panels.js`, `ui/dialogs.js`: accessible controls and presentation state.
 - `platform/file-io.js`: File, Blob, download, optional File System Access API, and browser capability checks.
 - `platform/storage.js`: optional local preferences only; never persist document bytes or telemetry without a future, explicit design decision.
-- `pwa/register-service-worker.js`: service-worker registration and update UX.
+- `pwa/register-service-worker.js`: planned extraction for service-worker registration and update UX.
 
 No module other than `wasm-bridge.js` calls the WASM exports directly. No module other than `pdf-viewer.js` and `pdfjs-loader.js` depends on PDF.js internals. The UI overlay is a view of the Rust-backed annotation state, not a replacement source of truth.
 

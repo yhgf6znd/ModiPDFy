@@ -19,7 +19,7 @@ Editing existing PDF text and images, compression, OCR, and cryptographic signat
 Local File / File System Access API
                 |
         Vanilla JS application
-        (state, tools, interaction)
+      (viewer, state, tools, interaction)
           |                |
        PDF.js          Rust/WASM
      (render/view)   (PDF read/write)
