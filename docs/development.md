@@ -1,6 +1,6 @@
 # Development guide
 
-This guide describes the intended workflow while ModiPDFy is being built. The repository contains the initial native Rust/WASM boundary and browser PDF.js viewer. Annotation mutation and export workflows are intentionally still staged behind the documented interfaces.
+This guide describes the intended workflow while ModiPDFy is being built. The repository contains the native Rust/WASM boundary, browser PDF.js viewer, and the initial Rust-backed annotation editing interface. New PDF behavior must continue to cross the documented Rust/WASM boundary rather than being implemented as a browser-only export shortcut.
 
 ## Prerequisites
 
@@ -94,14 +94,14 @@ npm test
 
 `npm run dev` builds the WASM package, vendors PDF.js, and serves the static `dist/` directory at localhost. `npm run preview` serves the already-built `dist/` directory. `npm test` runs formatting, clippy, native tests, the WASM build, Node-executed bridge/coordinate tests, JavaScript syntax checks, and the production static build. The scripts use only Node.js built-ins; PDF.js is a pinned development dependency whose browser assets are copied into the static build.
 
-The browser integration harness is [`tests/browser/index.html`](../tests/browser/index.html). To run it in a browser, build the project, serve the repository root, and open `/tests/browser/index.html`:
+The browser integration harness is [`tests/browser/index.html`](../tests/browser/index.html). The annotation interaction harness is [`tests/browser/annotations.html`](../tests/browser/annotations.html). To run them in a browser, build the project, serve the repository root, and open the relevant page:
 
 ```sh
 npm run build
 node scripts/serve.mjs .
 ```
 
-It exercises initialization, typed-array PDF loading, page count, page dimensions, export, malformed-input errors, explicit disposal, and repeated open/close operations. The viewer smoke page is [`tests/browser/viewer.html`](../tests/browser/viewer.html); it uses the same [`web/js/pdf-viewer.js`](../web/js/pdf-viewer.js) module used by the application and documents the browser-only rendering checks.
+The WASM harness exercises initialization, typed-array PDF loading, page count, page dimensions, annotation add/list/remove, export, malformed-input errors, explicit disposal, and repeated open/close operations. The annotation harness exercises pen, text, selection/move, highlight selection, deletion, Rust persistence, and zoom-coordinate stability. The viewer smoke page is [`tests/browser/viewer.html`](../tests/browser/viewer.html); it uses the same [`web/js/pdf-viewer.js`](../web/js/pdf-viewer.js) module used by the application and documents the browser-only rendering checks.
 
 ## Test expectations
 

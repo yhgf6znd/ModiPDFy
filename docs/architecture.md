@@ -8,7 +8,8 @@ ModiPDFy is a static, client-only web application. Its trusted editing path is:
 2. JavaScript supplies the bytes to the Rust/WASM adapter.
 3. Rust parses the PDF, exposes page metadata and text geometry needed by the UI, and applies annotation operations.
 4. PDF.js renders the original or current document for viewing and supplies text/annotation display geometry. It does not own the editable PDF model.
-5. Rust exports PDF bytes, which JavaScript offers as a local download or File System Access API save.
+5. JavaScript keeps completed editor commands in a browser-side command model, sends those completed commands to Rust, and renders temporary interaction previews in an overlay.
+6. Rust exports PDF bytes, which JavaScript offers as a local download or File System Access API save.
 
 There is no application backend, account system, document sync, remote conversion service, or telemetry pipeline. GitHub Pages serves immutable static assets only.
 
@@ -37,6 +38,8 @@ The core release must preserve existing page content. A simple annotation must b
 ```
 
 The browser shell owns interaction state and rendering lifecycle. The Rust layers own document state that affects export and all PDF modification decisions.
+
+The viewer and editor deliberately have separate layers. PDF.js owns the canvas, selectable text layer, and display annotation layer. ModiPDFy owns an HTML/SVG editor layer above them. A pen stroke or drag is previewed in that layer and becomes one completed command only on pointer-up; the page canvas is never used as an annotation export surface.
 
 ## 3. Rust crate boundaries
 
@@ -67,6 +70,11 @@ await initializeWasm()
 document = await openPdfDocument(pdf_bytes)
 document.pageCount() -> number
 document.pageInfo(page_index) -> plain page-info object
+document.listAnnotations() -> plain annotation array
+document.addTextAnnotation(annotation fields)
+document.addInkAnnotation(annotation fields)
+document.addHighlightAnnotation(annotation fields)
+document.removeAnnotation(editor_id)
 document.save() -> Uint8Array
 document.dispose() -> void
 ```
@@ -79,6 +87,7 @@ The exact bridge implementation may evolve, but the rules are stable:
 - Rust owns document validity and operation ordering. JavaScript may optimistically render interaction feedback but must reconcile with the Rust operation report.
 - Avoid returning live Rust object graphs or passing DOM objects into WASM. The bridge copies page scalars into a plain object and explicitly frees the temporary Rust page-info wrapper.
 - Keep the boundary small enough that it can be tested with malformed JSON, missing fields, large values, and stale annotation IDs.
+- Keep editor IDs stable in the JavaScript model and pass them through `/NM` so browser selection remains associated with exported annotations.
 
 Suggested error envelope:
 
@@ -105,15 +114,17 @@ The frontend uses native ES modules and should keep modules narrow:
 - `coordinates.js`: the only CSS/canvas/PDF coordinate conversion module; it delegates page rotation and crop-box transforms to PDF.js viewports.
 - `pdfjs-loader.js`: isolates the pinned, same-origin PDF.js runtime and worker configuration.
 - `wasm-bridge.js`: the only module that knows the generated WASM public API and error envelope; it validates JavaScript inputs and owns document disposal.
-- `annotations/model.js`: UI projections of Rust annotation data; no PDF byte mutation.
-- `annotations/interaction.js`: pointer, keyboard, selection, drag, resize, and freehand capture.
-- `annotations/overlay.js`: SVG/canvas/HTML overlay rendering above PDF.js pages.
+- `annotation-model.js`: UI projection of Rust annotation data, stable editor IDs, previews, and completed-command history; no PDF byte mutation.
+- `annotation-interaction.js`: Pointer Events, pointer capture, keyboard shortcuts, text drafts, selection, drag, resize, highlight selection, and freehand capture.
+- `annotation-overlay.js`: SVG/HTML overlay rendering above PDF.js pages; it renders committed state and transient previews but does not serialize PDFs.
 - `ui/toolbar.js`, `ui/panels.js`, `ui/dialogs.js`: accessible controls and presentation state.
 - `platform/file-io.js`: File, Blob, download, optional File System Access API, and browser capability checks.
 - `platform/storage.js`: optional local preferences only; never persist document bytes or telemetry without a future, explicit design decision.
 - `pwa/register-service-worker.js`: planned extraction for service-worker registration and update UX.
 
 No module other than `wasm-bridge.js` calls the WASM exports directly. No module other than `pdf-viewer.js` and `pdfjs-loader.js` depends on PDF.js internals. The UI overlay is a view of the Rust-backed annotation state, not a replacement source of truth.
+
+The current composition root is `main.js`; the future nested module names above are organizational guidance, not a requirement to introduce framework-style layers. Keep native ES modules and use explicit constructor/callback contracts between the viewer, store, overlay, and interaction controller.
 
 ## 6. PDF coordinate conventions
 
@@ -156,6 +167,20 @@ The first release needs these concrete geometries:
 - `Signature`: an ink path or a user-provided signature bitmap reference handled locally; export policy must define whether it is embedded as an image XObject or represented as ink.
 - `Note`: a page anchor and text payload, with a bounded length and explicit display style.
 
+The current browser/WASM wire projection is intentionally plain and JSON-compatible:
+
+```text
+{
+  editorId, pageIndex, annotationType: "Text" | "Ink" | "Highlight",
+  position: { x, y },
+  bounds: { left, bottom, right, top },
+  style: { color: { red, green, blue }, opacity, strokeWidth, fontSize },
+  content: { text } | { paths: [[{ x, y }]] } | { quads: [{ topLeft, topRight, bottomLeft, bottomRight }] }
+}
+```
+
+`editorId` is a browser/session identifier projected to `/NM`; PDF object numbers remain Rust-owned. The editor model may hold previews, selection, and history that are not exported until a command is complete.
+
 `bounds` is a derived/validated envelope, not permission to flatten the page. Style values are bounded and use explicit units. Text payloads are plain text; HTML is never accepted as annotation content.
 
 The persisted/export model must distinguish:
@@ -179,6 +204,8 @@ Expected user mistakes are recoverable and actionable. A malformed or unsupporte
 
 No panic may cross the WASM boundary. Native code may use assertions for impossible programmer invariants, but not for input-controlled values. Logging is opt-in developer diagnostics and must not include document text, file names, or raw PDF bytes by default.
 
+The browser command queue reports failed Rust operations through the status region and restores the inverse local command when possible. Preview state is discarded on pointer cancellation or Escape. This is a first release policy; a later transactional batch API should make multi-step updates explicitly atomic at the Rust boundary.
+
 ## 9. Testing strategy
 
 Testing is layered:
@@ -189,6 +216,7 @@ Testing is layered:
 - Fuzz tests for PDF parsing and annotation command decoding, with strict time/memory/output limits.
 - WASM boundary tests for JSON compatibility, typed errors, byte transfer, and native-vs-WASM parity.
 - Browser tests for local file loading, PDF.js rendering, pointer/keyboard interaction, service-worker cache behavior, and export/download.
+- Browser annotation coverage must include pen, text commit/edit, highlight selection, selection/move/delete, keyboard cancellation, Rust persistence, and invariant PDF coordinates across zoom and rotation.
 - Accessibility checks for keyboard operation, focus management, labels, contrast, reduced motion, and screen-reader names.
 
 Every export feature needs a round-trip test: export, reopen through `modipdfy-pdf`, render with PDF.js where feasible, and compare the expected annotation/content properties. Fixtures must be legally redistributable and contain no personal documents.

@@ -26,24 +26,24 @@ Exit evidence: a cached app opens and renders single/multipage fixtures with the
 
 ## Phase 2 — annotation foundation
 
-Status: in progress — native annotation engine delivered.
+Status: in progress — native annotation engine and initial browser tools delivered.
 
 - Core annotation model, stable IDs, validation, and ID-based removal/listing for Text/FreeText, Ink, and Highlight.
 - Object-preserving PDF annotation export infrastructure using `lopdf`, including native appearance streams and opacity states.
-- Generic overlay rendering and canonical PDF-to-viewport transform tests.
+- SVG/HTML overlay rendering, canonical PDF-to-viewport transforms, and native pointer-event interaction tests.
 - Export/reopen fixtures for unrotated and rotated/cropped pages.
 
-Exit evidence in progress: native tests add, save, reopen, and inspect all three annotation types, preserve page content and existing annotations, and block signed-document mutation. Operation batches, undo/redo, browser wiring, and independent-reader coverage remain open.
+Exit evidence in progress: native tests add, save, reopen, and inspect all three annotation types, preserve page content and existing annotations, and block signed-document mutation. Browser tests cover pen, text, highlight, selection/move, deletion, Rust persistence, and zoom stability. Operation rollback/undo-redo depth, handwritten signatures, and independent-reader coverage remain open.
 
 ## Phase 3 — initial annotation tools
 
-Implement the initial release tools:
+Complete and harden the initial release tools:
 
 - text highlights based on PDF.js selection rectangles;
 - freehand ink with smoothing/point limits;
 - handwritten signatures as local ink and/or embedded local image according to the finalized policy;
 - notes and basic annotation styling;
-- selecting, moving, editing, deleting, and undoing annotation operations.
+- selecting, moving, resizing where applicable, editing, deleting, and undoing annotation operations.
 
 Exit evidence: keyboard and pointer workflows are accessible, exports reopen in PDF.js and an independent reader, and annotation-only changes preserve unrelated page content.
 
