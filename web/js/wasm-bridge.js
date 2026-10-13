@@ -128,6 +128,111 @@ class PdfDocumentHandle {
     }
   }
 
+  /** Return the Rust-backed supported annotation projection. */
+  listAnnotations() {
+    const document = this.#requireDocument();
+    try {
+      const annotations = document.listAnnotations();
+      if (!Array.isArray(annotations)) {
+        throw new WasmBridgeError("invalid_wasm_result", "WASM returned invalid annotations.", false);
+      }
+      return annotations;
+    } catch (error) {
+      throw translateWasmError(error);
+    }
+  }
+
+  /** Commit one completed text annotation through Rust. */
+  addTextAnnotation(annotation) {
+    const document = this.#requireDocument();
+    try {
+      const { editorId, pageIndex, position, bounds, style, content } = annotation;
+      return document.addTextAnnotation(
+        editorId,
+        pageIndex,
+        position.x,
+        position.y,
+        bounds.left,
+        bounds.bottom,
+        bounds.right,
+        bounds.top,
+        content.text,
+        style.color.red,
+        style.color.green,
+        style.color.blue,
+        style.opacity,
+        style.strokeWidth,
+        style.fontSize,
+      );
+    } catch (error) {
+      throw translateWasmError(error);
+    }
+  }
+
+  /** Commit one completed ink annotation through Rust. */
+  addInkAnnotation(annotation) {
+    const document = this.#requireDocument();
+    try {
+      const { editorId, pageIndex, position, bounds, style, content } = annotation;
+      return document.addInkAnnotation(
+        editorId,
+        pageIndex,
+        position.x,
+        position.y,
+        bounds.left,
+        bounds.bottom,
+        bounds.right,
+        bounds.top,
+        content.paths,
+        style.color.red,
+        style.color.green,
+        style.color.blue,
+        style.opacity,
+        style.strokeWidth,
+        style.fontSize,
+      );
+    } catch (error) {
+      throw translateWasmError(error);
+    }
+  }
+
+  /** Commit one completed highlight annotation through Rust. */
+  addHighlightAnnotation(annotation) {
+    const document = this.#requireDocument();
+    try {
+      const { editorId, pageIndex, position, bounds, style, content } = annotation;
+      return document.addHighlightAnnotation(
+        editorId,
+        pageIndex,
+        position.x,
+        position.y,
+        bounds.left,
+        bounds.bottom,
+        bounds.right,
+        bounds.top,
+        content.quads,
+        style.color.red,
+        style.color.green,
+        style.color.blue,
+        style.opacity,
+        style.strokeWidth,
+        style.fontSize,
+      );
+    } catch (error) {
+      throw translateWasmError(error);
+    }
+  }
+
+  /** Remove one completed annotation through Rust. */
+  removeAnnotation(editorId) {
+    const document = this.#requireDocument();
+    try {
+      document.removeAnnotation(editorId);
+    } catch (error) {
+      throw translateWasmError(error);
+    }
+  }
+
   /** Release Rust and generated WASM resources. Repeated calls are safe. */
   dispose() {
     if (this.#document) {

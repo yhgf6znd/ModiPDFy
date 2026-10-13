@@ -1,7 +1,11 @@
 //! JavaScript-facing adapter for the native ModiPDFy core.
 
-use js_sys::{Object, Reflect};
-use modipdfy_core::{PageInfo, PdfDocument, PdfError};
+use js_sys::{Array, Object, Reflect};
+use modipdfy_core::{
+    Annotation, AnnotationContent, AnnotationId, AnnotationStyle, HighlightAnnotation,
+    InkAnnotation, PageInfo, PdfColor, PdfDocument, PdfError, PdfPoint, PdfQuad, PdfRectangle,
+    TextAnnotation,
+};
 use wasm_bindgen::prelude::*;
 
 /// Return the application version for display in the browser.
@@ -69,6 +73,140 @@ impl ModiPdfDocument {
         let document = self.document()?;
         let info = document.page_info(page_index as usize).map_err(pdf_error)?;
         Ok(ModiPdfPageInfo::from_core(page_index, info))
+    }
+
+    /// Add a native FreeText annotation from canonical PDF-space values.
+    #[wasm_bindgen(js_name = addTextAnnotation)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_text_annotation(
+        &mut self,
+        editor_id: String,
+        page_index: u32,
+        position_x: f64,
+        position_y: f64,
+        bounds_left: f64,
+        bounds_bottom: f64,
+        bounds_right: f64,
+        bounds_top: f64,
+        text: String,
+        color_red: f64,
+        color_green: f64,
+        color_blue: f64,
+        opacity: f64,
+        stroke_width: f64,
+        font_size: f64,
+    ) -> Result<String, JsValue> {
+        let annotation = TextAnnotation {
+            editor_id: AnnotationId::new(editor_id).map_err(pdf_error)?,
+            page_index: page_index as usize,
+            position: PdfPoint { x: position_x, y: position_y },
+            bounds: PdfRectangle {
+                left: bounds_left,
+                bottom: bounds_bottom,
+                right: bounds_right,
+                top: bounds_top,
+            },
+            style: wire_style(color_red, color_green, color_blue, opacity, stroke_width, font_size),
+            text,
+        };
+        let id = self.document_mut()?.add_text_annotation(annotation).map_err(pdf_error)?;
+        Ok(id.to_string())
+    }
+
+    /// Add a native Ink annotation. `paths` is an array of point objects.
+    #[wasm_bindgen(js_name = addInkAnnotation)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_ink_annotation(
+        &mut self,
+        editor_id: String,
+        page_index: u32,
+        position_x: f64,
+        position_y: f64,
+        bounds_left: f64,
+        bounds_bottom: f64,
+        bounds_right: f64,
+        bounds_top: f64,
+        paths: JsValue,
+        color_red: f64,
+        color_green: f64,
+        color_blue: f64,
+        opacity: f64,
+        stroke_width: f64,
+        font_size: f64,
+    ) -> Result<String, JsValue> {
+        let paths = parse_paths(&paths)?;
+        let annotation = InkAnnotation {
+            editor_id: AnnotationId::new(editor_id).map_err(pdf_error)?,
+            page_index: page_index as usize,
+            position: PdfPoint { x: position_x, y: position_y },
+            bounds: PdfRectangle {
+                left: bounds_left,
+                bottom: bounds_bottom,
+                right: bounds_right,
+                top: bounds_top,
+            },
+            style: wire_style(color_red, color_green, color_blue, opacity, stroke_width, font_size),
+            paths,
+        };
+        let id = self.document_mut()?.add_ink_annotation(annotation).map_err(pdf_error)?;
+        Ok(id.to_string())
+    }
+
+    /// Add a native Highlight annotation. `quads` is an array of quad objects.
+    #[wasm_bindgen(js_name = addHighlightAnnotation)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_highlight_annotation(
+        &mut self,
+        editor_id: String,
+        page_index: u32,
+        position_x: f64,
+        position_y: f64,
+        bounds_left: f64,
+        bounds_bottom: f64,
+        bounds_right: f64,
+        bounds_top: f64,
+        quads: JsValue,
+        color_red: f64,
+        color_green: f64,
+        color_blue: f64,
+        opacity: f64,
+        stroke_width: f64,
+        font_size: f64,
+    ) -> Result<String, JsValue> {
+        let quads = parse_quads(&quads)?;
+        let annotation = HighlightAnnotation {
+            editor_id: AnnotationId::new(editor_id).map_err(pdf_error)?,
+            page_index: page_index as usize,
+            position: PdfPoint { x: position_x, y: position_y },
+            bounds: PdfRectangle {
+                left: bounds_left,
+                bottom: bounds_bottom,
+                right: bounds_right,
+                top: bounds_top,
+            },
+            style: wire_style(color_red, color_green, color_blue, opacity, stroke_width, font_size),
+            quads,
+        };
+        let id = self.document_mut()?.add_highlight_annotation(annotation).map_err(pdf_error)?;
+        Ok(id.to_string())
+    }
+
+    /// Remove a supported annotation by its stable editor ID.
+    #[wasm_bindgen(js_name = removeAnnotation)]
+    pub fn remove_annotation(&mut self, editor_id: String) -> Result<(), JsValue> {
+        let id = AnnotationId::new(editor_id).map_err(pdf_error)?;
+        self.document_mut()?.remove_annotation(&id).map_err(pdf_error)
+    }
+
+    /// Return supported annotations as plain JavaScript objects.
+    #[wasm_bindgen(js_name = listAnnotations)]
+    pub fn list_annotations(&self) -> Result<JsValue, JsValue> {
+        let annotations = self.document()?.list_annotations().map_err(pdf_error)?;
+        let result = Array::new();
+        for annotation in &annotations {
+            result.push(&annotation_js(annotation)?);
+        }
+        Ok(result.into())
     }
 
     /// Save the current document to a new JavaScript `Uint8Array`.
@@ -193,6 +331,166 @@ impl ModiPdfPageInfo {
 
 fn disposed_error() -> JsValue {
     structured_error("document_disposed", "The PDF document has been disposed.", true)
+}
+
+fn invalid_annotation(message: &str) -> JsValue {
+    structured_error("invalid_annotation", message, true)
+}
+
+fn number_property(value: &JsValue, key: &str) -> Result<f64, JsValue> {
+    Reflect::get(value, &JsValue::from_str(key))
+        .map_err(|_| invalid_annotation("annotation coordinate is unreadable"))?
+        .as_f64()
+        .filter(|number| number.is_finite())
+        .ok_or_else(|| invalid_annotation("annotation coordinate must be finite"))
+}
+
+fn point_from_js(value: &JsValue) -> Result<PdfPoint, JsValue> {
+    Ok(PdfPoint { x: number_property(value, "x")?, y: number_property(value, "y")? })
+}
+
+fn parse_paths(value: &JsValue) -> Result<Vec<Vec<PdfPoint>>, JsValue> {
+    if !Array::is_array(value) {
+        return Err(invalid_annotation("ink paths must be an array"));
+    }
+    Array::from(value)
+        .iter()
+        .map(|path| {
+            if !Array::is_array(&path) {
+                return Err(invalid_annotation("each ink path must be an array"));
+            }
+            Array::from(&path).iter().map(|point| point_from_js(&point)).collect()
+        })
+        .collect()
+}
+
+fn parse_quads(value: &JsValue) -> Result<Vec<PdfQuad>, JsValue> {
+    if !Array::is_array(value) {
+        return Err(invalid_annotation("highlight quads must be an array"));
+    }
+    Array::from(value)
+        .iter()
+        .map(|quad| {
+            let property = |key| {
+                Reflect::get(&quad, &JsValue::from_str(key))
+                    .map_err(|_| invalid_annotation("highlight quad is unreadable"))
+            };
+            Ok(PdfQuad {
+                top_left: point_from_js(&property("topLeft")?)?,
+                top_right: point_from_js(&property("topRight")?)?,
+                bottom_left: point_from_js(&property("bottomLeft")?)?,
+                bottom_right: point_from_js(&property("bottomRight")?)?,
+            })
+        })
+        .collect()
+}
+
+fn wire_style(
+    color_red: f64,
+    color_green: f64,
+    color_blue: f64,
+    opacity: f64,
+    stroke_width: f64,
+    font_size: f64,
+) -> AnnotationStyle {
+    AnnotationStyle {
+        color: PdfColor { red: color_red, green: color_green, blue: color_blue },
+        opacity,
+        stroke_width,
+        font_size,
+    }
+}
+
+fn set_property(object: &Object, key: &str, value: &JsValue) -> Result<(), JsValue> {
+    Reflect::set(object, &JsValue::from_str(key), value)
+        .map(|_| ())
+        .map_err(|_| invalid_annotation("could not build annotation response"))
+}
+
+fn point_js(point: PdfPoint) -> Result<JsValue, JsValue> {
+    let object = Object::new();
+    set_property(&object, "x", &JsValue::from_f64(point.x))?;
+    set_property(&object, "y", &JsValue::from_f64(point.y))?;
+    Ok(object.into())
+}
+
+fn rect_js(rect: PdfRectangle) -> Result<JsValue, JsValue> {
+    let object = Object::new();
+    set_property(&object, "left", &JsValue::from_f64(rect.left))?;
+    set_property(&object, "bottom", &JsValue::from_f64(rect.bottom))?;
+    set_property(&object, "right", &JsValue::from_f64(rect.right))?;
+    set_property(&object, "top", &JsValue::from_f64(rect.top))?;
+    Ok(object.into())
+}
+
+fn style_js(style: AnnotationStyle) -> Result<JsValue, JsValue> {
+    let color = Object::new();
+    set_property(&color, "red", &JsValue::from_f64(style.color.red))?;
+    set_property(&color, "green", &JsValue::from_f64(style.color.green))?;
+    set_property(&color, "blue", &JsValue::from_f64(style.color.blue))?;
+    let object = Object::new();
+    let color_value: JsValue = color.into();
+    set_property(&object, "color", &color_value)?;
+    set_property(&object, "opacity", &JsValue::from_f64(style.opacity))?;
+    set_property(&object, "strokeWidth", &JsValue::from_f64(style.stroke_width))?;
+    set_property(&object, "fontSize", &JsValue::from_f64(style.font_size))?;
+    Ok(object.into())
+}
+
+fn annotation_js(annotation: &Annotation) -> Result<JsValue, JsValue> {
+    let object = Object::new();
+    set_property(&object, "editorId", &JsValue::from_str(annotation.editor_id.as_str()))?;
+    set_property(&object, "pageIndex", &JsValue::from_f64(annotation.page_index as f64))?;
+    let annotation_type = match annotation.annotation_type {
+        modipdfy_core::AnnotationType::Text => "Text",
+        modipdfy_core::AnnotationType::Ink => "Ink",
+        modipdfy_core::AnnotationType::Highlight => "Highlight",
+    };
+    set_property(&object, "annotationType", &JsValue::from_str(annotation_type))?;
+    let position = point_js(annotation.position)?;
+    let bounds = rect_js(annotation.bounds)?;
+    let style = style_js(annotation.style)?;
+    set_property(&object, "position", &position)?;
+    set_property(&object, "bounds", &bounds)?;
+    set_property(&object, "style", &style)?;
+    let content = Object::new();
+    match &annotation.content {
+        AnnotationContent::Text { text } => {
+            set_property(&content, "text", &JsValue::from_str(text))?;
+        }
+        AnnotationContent::Ink { paths } => {
+            let path_array = Array::new();
+            for path in paths {
+                let points = Array::new();
+                for point in path {
+                    points.push(&point_js(*point)?);
+                }
+                path_array.push(&points);
+            }
+            let value: JsValue = path_array.into();
+            set_property(&content, "paths", &value)?;
+        }
+        AnnotationContent::Highlight { quads } => {
+            let quad_array = Array::new();
+            for quad in quads {
+                let item = Object::new();
+                let top_left = point_js(quad.top_left)?;
+                let top_right = point_js(quad.top_right)?;
+                let bottom_left = point_js(quad.bottom_left)?;
+                let bottom_right = point_js(quad.bottom_right)?;
+                set_property(&item, "topLeft", &top_left)?;
+                set_property(&item, "topRight", &top_right)?;
+                set_property(&item, "bottomLeft", &bottom_left)?;
+                set_property(&item, "bottomRight", &bottom_right)?;
+                quad_array.push(&item);
+            }
+            let value: JsValue = quad_array.into();
+            set_property(&content, "quads", &value)?;
+        }
+    }
+    let content_value: JsValue = content.into();
+    set_property(&object, "content", &content_value)?;
+    Ok(object.into())
 }
 
 fn pdf_error(error: PdfError) -> JsValue {

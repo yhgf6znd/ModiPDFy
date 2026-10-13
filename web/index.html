@@ -39,6 +39,21 @@
         <button id="zoom-in" class="button" type="button" disabled aria-label="Zoom in">+</button>
         <button id="fit-width" class="button" type="button" disabled>Fit width</button>
         <button id="fit-page" class="button" type="button" disabled>Fit page</button>
+        <span class="toolbar-divider" aria-hidden="true"></span>
+        <div class="tool-group" role="toolbar" aria-label="Annotation tools">
+          <button class="button tool-button is-active" type="button" data-tool="select" aria-pressed="true" title="Select (V)">Select</button>
+          <button class="button tool-button" type="button" data-tool="text" aria-pressed="false" title="Text (T)">Text</button>
+          <button class="button tool-button" type="button" data-tool="pen" aria-pressed="false" title="Pen (P)">Pen</button>
+          <button class="button tool-button" type="button" data-tool="highlight" aria-pressed="false" title="Highlight (H)">Highlight</button>
+          <button class="button tool-button" type="button" data-tool="eraser" aria-pressed="false" title="Delete (E)">Delete</button>
+        </div>
+        <label class="property-control" for="annotation-color">Color <input id="annotation-color" type="color" value="#254b87" disabled></label>
+        <label class="property-control" for="annotation-width">Width <input id="annotation-width" type="range" min="1" max="20" value="3" disabled></label>
+        <label class="property-control" for="annotation-font-size">Font <input id="annotation-font-size" type="number" min="6" max="72" value="14" disabled></label>
+        <button id="delete-selected" class="button" type="button" disabled>Delete selected</button>
+        <button id="undo" class="button" type="button" disabled aria-label="Undo">Undo</button>
+        <button id="redo" class="button" type="button" disabled aria-label="Redo">Redo</button>
+        <button id="export-pdf" class="button button-primary" type="button" disabled>Export PDF</button>
       </section>
 
       <main id="viewer-viewport" class="viewer-viewport" tabindex="0" aria-label="PDF document viewer">

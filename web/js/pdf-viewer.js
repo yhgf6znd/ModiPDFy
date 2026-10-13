@@ -1,6 +1,7 @@
 import { pdfjsLib } from "./pdfjs-loader.js";
 import {
   getCanvasPixelSize,
+  cssToPdfPoint,
   pdfRectToCssRect,
 } from "./coordinates.js";
 
@@ -33,6 +34,7 @@ export class PdfViewer {
     onPageChange = () => {},
     onPageCount = () => {},
     onZoomChange = () => {},
+    onPageRender = () => {},
     onStatus = () => {},
   }) {
     if (!viewportElement || !pagesElement) {
@@ -43,6 +45,7 @@ export class PdfViewer {
     this.onPageChange = onPageChange;
     this.onPageCount = onPageCount;
     this.onZoomChange = onZoomChange;
+    this.onPageRender = onPageRender;
     this.onStatus = onStatus;
     this.pdfDocument = null;
     this.pageCache = new Map();
@@ -77,6 +80,22 @@ export class PdfViewer {
 
   get zoomPercent() {
     return Math.round(this.scale * 100);
+  }
+
+  getPageState(pageIndex) {
+    return this.pageStates.get(pageIndex);
+  }
+
+  getRenderedPageStates() {
+    return [...this.pageStates.entries()].map(([index, state]) => ({ index, state, ...state }));
+  }
+
+  cssToPdfPoint(pageIndex, point) {
+    const viewport = this.pageStates.get(pageIndex)?.viewport;
+    if (!viewport) {
+      throw new Error("The requested page has not been rendered.");
+    }
+    return cssToPdfPoint(viewport, point);
   }
 
   async openFile(file) {
@@ -215,10 +234,13 @@ export class PdfViewer {
       const annotationLayer = document.createElement("div");
       annotationLayer.className = "annotation-layer annotationLayer";
       annotationLayer.setAttribute("aria-hidden", "true");
-      stage.append(canvas, textLayer, annotationLayer);
+      const editorLayer = document.createElement("div");
+      editorLayer.className = "editor-layer";
+      editorLayer.setAttribute("aria-label", "Editable annotations");
+      stage.append(canvas, textLayer, annotationLayer, editorLayer);
       shell.append(stage);
       this.pagesElement.append(shell);
-      const state = { shell, stage, canvas, textLayer, annotationLayer, rendered: false, viewport: null };
+      const state = { shell, stage, canvas, textLayer, annotationLayer, editorLayer, rendered: false, viewport: null };
       this.pageStates.set(index, state);
       this.intersectionObserver.observe(shell);
     }
@@ -297,6 +319,7 @@ export class PdfViewer {
     setElementSize(state.textLayer, viewport.width, viewport.height);
     state.annotationLayer.replaceChildren();
     setElementSize(state.annotationLayer, viewport.width, viewport.height);
+    setElementSize(state.editorLayer, viewport.width, viewport.height);
     const context = state.canvas.getContext("2d", { alpha: false });
     context.setTransform(pixelSize.devicePixelRatio, 0, 0, pixelSize.devicePixelRatio, 0, 0);
     const renderTask = page.render({ canvasContext: context, viewport });
@@ -330,6 +353,7 @@ export class PdfViewer {
       }
       state.rendered = true;
       state.shell.dataset.ready = "true";
+      this.onPageRender(index, state);
     } catch (error) {
       if (!isRenderCancellation(error)) {
         this.onStatus(`Could not render page ${index + 1}.`, "error");

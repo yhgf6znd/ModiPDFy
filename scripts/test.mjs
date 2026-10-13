@@ -36,6 +36,9 @@ run("wasm-pack", [
 ]);
 run(process.execPath, ["scripts/wasm-bridge-test.mjs"]);
 run(process.execPath, ["--check", "web/js/main.js"]);
+run(process.execPath, ["--check", "web/js/annotation-model.js"]);
+run(process.execPath, ["--check", "web/js/annotation-overlay.js"]);
+run(process.execPath, ["--check", "web/js/annotation-interaction.js"]);
 run(process.execPath, ["--check", "web/js/wasm-client.js"]);
 run(process.execPath, ["--check", "web/js/wasm-bridge.js"]);
 run(process.execPath, ["--check", "web/js/coordinates.js"]);
@@ -44,6 +47,7 @@ run(process.execPath, ["--check", "web/js/pdf-viewer.js"]);
 run(process.execPath, ["--check", "tests/browser/pdf-fixture.js"]);
 run(process.execPath, ["--check", "tests/browser/wasm-bridge.test.js"]);
 run(process.execPath, ["--check", "tests/browser/viewer.test.js"]);
+run(process.execPath, ["--check", "tests/browser/annotations.test.js"]);
 run(process.execPath, ["--test", "tests/coordinates/coordinates.test.mjs"]);
 run(process.execPath, ["--check", "web/sw.js"]);
 run(process.execPath, ["--check", "scripts/build-web.mjs"]);

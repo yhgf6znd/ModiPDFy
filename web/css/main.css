@@ -26,6 +26,12 @@ h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.04em; }
 .page-control input { width: 3.4rem; min-height: 2.15rem; padding: 0.25rem; border: 1px solid #c5cfdd; border-radius: 0.45rem; text-align: center; }
 .toolbar-divider { width: 1px; height: 1.6rem; margin: 0 0.25rem; background: #d8e0eb; }
 .zoom-level { min-width: 3.6rem; color: #34445e; text-align: center; }
+.tool-group { display: inline-flex; gap: 0.25rem; }
+.tool-button.is-active { border-color: #4266a8; background: #dfe9f8; color: #193b72; box-shadow: inset 0 0 0 1px #4266a8; }
+.property-control { display: inline-flex; align-items: center; gap: 0.3rem; color: #526078; font-size: 0.8rem; }
+.property-control input[type="color"] { width: 2rem; height: 2rem; padding: 0.1rem; border: 1px solid #c5cfdd; border-radius: 0.35rem; background: #fff; }
+.property-control input[type="range"] { width: 4.5rem; }
+.property-control input[type="number"] { width: 3.5rem; min-height: 2rem; padding: 0.2rem; border: 1px solid #c5cfdd; border-radius: 0.35rem; }
 .viewer-viewport { position: relative; overflow: auto; min-height: 0; padding: 1.5rem; outline: none; background: #e8edf4; }
 .viewer-viewport:focus-visible { box-shadow: inset 0 0 0 3px #8eafe3; }
 .dropzone { display: grid; min-height: min(50vh, 24rem); place-content: center; padding: 2rem; border: 2px dashed #9aabc2; border-radius: 1rem; color: #526078; text-align: center; }
@@ -35,11 +41,22 @@ h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.04em; }
 .pdf-pages { display: grid; justify-items: center; gap: 1.5rem; }
 .pdf-page { position: relative; width: max-content; min-width: min(100%, 3rem); min-height: 4rem; scroll-margin-top: 1rem; }
 .page-stage { position: relative; overflow: hidden; background: #fff; box-shadow: 0 0.5rem 1.5rem rgb(23 32 51 / 18%); }
-.pdf-canvas, .text-layer, .annotation-layer { position: absolute; inset: 0; display: block; }
+.pdf-canvas, .text-layer, .annotation-layer, .editor-layer { position: absolute; inset: 0; display: block; }
 .text-layer { overflow: hidden; line-height: 1; transform-origin: 0 0; user-select: text; }
 .text-layer span { position: absolute; color: transparent; cursor: text; transform-origin: 0 0; white-space: pre; }
 .text-layer ::selection { background: rgb(66 102 168 / 30%); }
 .annotation-layer { pointer-events: none; }
+.editor-layer { z-index: 4; pointer-events: none; touch-action: auto; }
+.editor-layer[data-tool="pen"] { pointer-events: auto; touch-action: none; }
+.editor-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.editor-annotation { pointer-events: auto; }
+.editor-text { overflow: hidden; padding: 0.1rem 0.2rem; border: 1px solid transparent; border-radius: 0.2rem; background: rgb(255 255 255 / 45%); line-height: 1.15; white-space: pre-wrap; word-break: break-word; cursor: move; }
+.editor-text:hover, .editor-text:focus-visible { border-color: #4266a8; outline: none; }
+.editor-ink, .editor-highlight { cursor: move; }
+.annotation-selection { position: absolute; z-index: 5; border: 1px solid #4266a8; background: rgb(66 102 168 / 8%); pointer-events: none; }
+.annotation-resize-handle { position: absolute; right: -0.35rem; bottom: -0.35rem; width: 0.7rem; height: 0.7rem; padding: 0; border: 1px solid #fff; border-radius: 50%; background: #4266a8; pointer-events: auto; cursor: nwse-resize; }
+.annotation-text-draft { position: absolute; z-index: 8; resize: both; padding: 0.2rem; border: 2px solid #4266a8; border-radius: 0.25rem; background: #fff; color: #172033; line-height: 1.15; }
+.interaction-preview { filter: drop-shadow(0 0 1px rgb(255 255 255 / 80%)); }
 .pdf-page:not([data-ready="true"]) .page-stage { min-width: 12rem; min-height: 16rem; }
 .app-footer { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 1rem; border-top: 1px solid #d8e0eb; border-bottom: 0; }
 .status, .version-line { margin: 0; color: #34445e; font-size: 0.85rem; }
@@ -51,6 +68,8 @@ h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.04em; }
   .document-name { max-width: none; }
   .toolbar { padding: 0.5rem; }
   .toolbar-divider { display: none; }
+  .tool-group { width: 100%; overflow-x: auto; }
+  .property-control { min-height: 2rem; }
   .viewer-viewport { padding: 0.75rem; }
   .app-footer { align-items: flex-start; flex-direction: column; gap: 0.25rem; }
 }

@@ -91,6 +91,18 @@ export function pdfRectToCssRect(viewport, rect) {
   return { x: left, y: top, width: Math.max(...xs) - left, height: Math.max(...ys) - top };
 }
 
+export function pdfBoundsToCssRect(viewport, bounds) {
+  if (!bounds || !Number.isFinite(bounds.left) || !Number.isFinite(bounds.bottom) || !Number.isFinite(bounds.right) || !Number.isFinite(bounds.top) || bounds.right < bounds.left || bounds.top < bounds.bottom) {
+    throw new TypeError("bounds must contain finite ordered left, bottom, right, and top values.");
+  }
+  return pdfRectToCssRect(viewport, {
+    x: bounds.left,
+    y: bounds.bottom,
+    width: bounds.right - bounds.left,
+    height: bounds.top - bounds.bottom,
+  });
+}
+
 export function getCanvasPixelSize(cssWidth, cssHeight, devicePixelRatio) {
   if (!Number.isFinite(cssWidth) || !Number.isFinite(cssHeight) || cssWidth < 0 || cssHeight < 0) {
     throw new RangeError("Canvas CSS dimensions must be finite and non-negative.");

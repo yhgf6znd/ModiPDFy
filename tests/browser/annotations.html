@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ModiPDFy annotation interaction tests</title>
+    <link rel="stylesheet" href="../../web/css/main.css">
+    <link rel="stylesheet" href="../../web/pdfjs/pdf_viewer.css">
+    <style>
+      #viewer { width: 640px; height: 480px; overflow: auto; }
+      #pages { display: grid; justify-items: center; gap: 12px; }
+      body { background: #e8edf4; font-family: sans-serif; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ModiPDFy annotation interaction tests</h1>
+      <p id="result" role="status">Running…</p>
+      <div id="viewer"><div id="pages"></div></div>
+    </main>
+    <script type="module" src="./annotations.test.js"></script>
+  </body>
+</html>
