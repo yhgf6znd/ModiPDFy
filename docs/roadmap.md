@@ -11,17 +11,22 @@ Status: documented.
 
 ## Phase 1 — browser shell and PDF viewing
 
+Status: in progress.
+
 Deliver a minimal offline-capable static app:
 
 - Cargo workspace with native-testable core, PDF adapter, and thin WASM adapter.
 - Local file open and explicit local save/download.
 - PDF.js rendering with page navigation, zoom, rotation-aware viewport metadata, and text-layer selection geometry.
+- Native lopdf-backed document loading, metadata, page inspection, object inspection, and unchanged save/reopen are implemented in `modipdfy-core`.
 - PWA manifest, service worker, versioned cache, and GitHub Pages base-path support.
 - Resource limits and safe errors for malformed/oversized PDFs.
 
 Exit evidence: a cached app opens and renders a local fixture with the network disabled, and the source file never leaves the browser.
 
 ## Phase 2 — annotation foundation
+
+Status: not started.
 
 - Core annotation model, stable IDs, operation batches, validation, and undo/redo semantics.
 - Object-preserving PDF export infrastructure using `lopdf`.

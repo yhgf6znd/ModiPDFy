@@ -6,7 +6,7 @@ This file is permanent guidance for future Codex sessions and contributors. The 
 
 - Treat [`README.md`](README.md) and the documents in `docs/` as the product and architecture source of truth. Update them when a decision or supported behavior changes; do not silently create a competing design.
 - Preserve the documented browser-only privacy boundary. Do not add a server, remote document path, analytics, telemetry, or runtime CDN dependency.
-- Preserve the documented Rust/PDF, WASM adapter, PDF.js viewer, and vanilla-JavaScript boundaries. Do not move PDF modification logic into JavaScript or couple the native Rust core to browser APIs.
+- Preserve the documented Rust/PDF, WASM adapter, PDF.js viewer, and vanilla-JavaScript boundaries. The native `modipdfy-core` crate owns the reusable lopdf-backed PDF engine; do not move PDF modification logic into JavaScript or couple the core to browser APIs.
 - Preserve original PDF content and appearance whenever possible. Never flatten an entire page to implement a simple annotation.
 - Treat imported PDFs and document-derived strings as untrusted input. Do not use `unwrap`/`expect` on input-controlled values in production paths; enforce resource limits and return typed errors.
 - Review every dependency and bundled asset for permissive licensing, native/WASM compatibility, network behavior, and unnecessary surface area.
@@ -18,8 +18,8 @@ The intended layout is:
 
 ```text
 crates/
-  modipdfy-core/       # PDF-independent domain types and editing operations
-  modipdfy-pdf/        # lopdf parsing, annotation application, and export
+  modipdfy-core/       # domain types and lopdf-backed PDF engine
+  modipdfy-pdf/        # optional future higher-level PDF adapter
   modipdfy-wasm/       # wasm-bindgen adapter only
 web/
   index.html
@@ -37,8 +37,8 @@ Names may evolve, but responsibilities must not collapse into a single crate or 
 
 ## Boundary rules
 
-- `modipdfy-core` must not depend on `wasm-bindgen`, DOM types, PDF.js, or browser APIs.
-- `modipdfy-pdf` owns PDF-specific concerns and depends on `modipdfy-core` and `lopdf`; it must expose typed Rust errors and preserve untouched objects whenever possible.
+- `modipdfy-core` must not depend on `wasm-bindgen`, DOM types, PDF.js, or browser APIs. It may depend on `lopdf` and owns typed PDF loading, inspection, metadata, and serialization errors.
+- A future `modipdfy-pdf` crate may provide higher-level PDF workflows, but it must build on the core engine rather than duplicate parsing or serialization logic.
 - `modipdfy-wasm` converts small JSON commands and byte buffers at the boundary. It must not contain PDF business rules.
 - JavaScript must not mutate PDF bytes, invent a second annotation model, or rely on private PDF.js internals for export.
 - PDF.js is a renderer and inspection aid. It is not the export authority.

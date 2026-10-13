@@ -63,4 +63,4 @@ The application has no document server. A release must not send PDF bytes, annot
 
 ## Status
 
-Initial Rust/WASM and framework-free web scaffold. PDF parsing, rendering, and annotation editing are not implemented yet.
+Initial Rust/WASM and framework-free web scaffold with a native lopdf-backed document engine. PDF rendering and annotation editing are not implemented yet.

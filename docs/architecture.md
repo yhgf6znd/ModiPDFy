@@ -29,13 +29,9 @@ The core release must preserve existing page content. A simple annotation must b
 └───────────────────────────────┘   └─────────────┬─────────────┘
                                                   v
                                   ┌──────────────────────────────┐
-                                  │ modipdfy-pdf                  │
-                                  │ lopdf parsing and export      │
-                                  └──────────────┬───────────────┘
-                                                 v
-                                  ┌──────────────────────────────┐
                                   │ modipdfy-core                 │
-                                  │ domain model and operations   │
+                                  │ domain model, lopdf engine,   │
+                                  │ inspection, and serialization │
                                   └──────────────────────────────┘
 ```
 
@@ -43,19 +39,17 @@ The browser shell owns interaction state and rendering lifecycle. The Rust layer
 
 ## 3. Rust crate boundaries
 
-The planned Cargo workspace has these crates. The current scaffold implements `modipdfy-core` and `modipdfy-wasm`; the PDF adapter is intentionally deferred until PDF editing work begins.
+The planned Cargo workspace has these crates. The current implementation places the reusable lopdf-backed document engine in `modipdfy-core`; a separate higher-level PDF adapter remains optional and is not required for the initial engine.
 
 ### `modipdfy-core`
 
-Pure Rust domain layer. It defines page identifiers, points and rectangles, annotation kinds, stroke paths, signatures, document/session metadata, commands, and validation rules. It should be usable in native tests without a browser, `wasm-bindgen`, or PDF parser.
+Pure Rust domain and PDF engine layer. It defines page identifiers, points and rectangles, annotation kinds, stroke paths, signatures, document/session metadata, commands, validation rules, and the byte-oriented lopdf document engine. It is usable in native tests without a browser, `wasm-bindgen`, or filesystem access.
 
-This crate does not know how a PDF stores an object. It expresses intent such as “add this highlight to page 2” or “move annotation A by this delta.”
+The document engine owns loading, page inspection, metadata extraction, object inspection, and serialization. Higher-level editing operations should express intent such as “add this highlight to page 2” without leaking browser concerns into the crate.
 
-### `modipdfy-pdf`
+### Future higher-level PDF adapter
 
-PDF adapter and export layer. It depends on `modipdfy-core` and `lopdf`. Responsibilities include loading a PDF, extracting safe page metadata, resolving page boxes and rotations, mapping domain annotations to PDF objects/content streams, preserving unrelated objects, and writing output bytes.
-
-The adapter must define an explicit capability matrix. For example, if a particular existing PDF annotation cannot be edited safely, it should preserve it and return a structured limitation rather than silently deleting or flattening it.
+If a separate `modipdfy-pdf` crate is introduced, it must depend on the core engine and add workflows rather than reimplement parsing, metadata, object inspection, or serialization. It must define an explicit capability matrix and preserve unsupported objects rather than silently deleting or flattening them.
 
 ### `modipdfy-wasm`
 
@@ -220,3 +214,14 @@ Core document flows must work after a successful first online load with the netw
 Project source is MIT-licensed. New source files should include the project’s standard MIT notice when the repository establishes one. Every dependency and bundled asset must have a compatible permissive license or an explicit legal review before inclusion. Record licenses for Rust crates, PDF.js, fonts, icons, examples, and test fixtures in a machine-readable notice file when implementation begins.
 
 License compatibility does not authorize copying code or assets without attribution. Avoid dependencies with copyleft, field-of-use restrictions, undisclosed telemetry, or a runtime service requirement unless the project owner explicitly approves a revised licensing plan.
+
+## 13. Current document-engine limitations
+
+The initial `modipdfy-core` engine intentionally supports inspection and unchanged save/reopen, not annotations or other edits:
+
+- Encrypted documents are detected and reported. Documents that lopdf can open with no password may be inspected; password-protected documents are not given a browser password flow yet.
+- Malformed input is rejected with a typed error when lopdf cannot recover it. Lenient parsing may accept some non-conforming PDFs, so successful loading is not a promise that every producer or reader will accept the file.
+- An input-size limit and lopdf per-stream decompression limit reduce denial-of-service exposure, but they are not a complete PDF security boundary.
+- A `/Prev` trailer entry is reported as an incremental-update warning. Untouched saves return the original bytes, while any future rewrite must be treated as potentially changing incremental-history semantics.
+- Signature dictionaries, signature fields, and `/ByteRange` markers are detected when present. Untouched saves preserve the original bytes; any future rewrite must not claim that a cryptographic signature remains valid.
+- `save_to_bytes` currently avoids rewriting an unmodified document. Future mutation APIs must mark the document dirty and route serialization through lopdf while preserving unrelated objects.

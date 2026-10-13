@@ -1,11 +1,27 @@
-//! PDF-independent domain primitives for ModiPDFy.
+//! Native PDF document engine and domain primitives for ModiPDFy.
 //!
-//! PDF parsing and browser integration deliberately live outside this crate. Keeping the
-//! domain layer native-testable gives the future PDF adapter and WASM adapter one stable,
-//! platform-independent contract.
+//! PDF parsing and serialization deliberately live here, while browser integration remains
+//! in the separate WASM adapter. The public API accepts byte slices and has no filesystem or
+//! browser dependency.
+
+mod document;
+mod error;
+mod inspect;
+mod metadata;
+mod page;
+mod serialization;
 
 /// The application version shared by native code and the browser adapter.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub use document::{
+    DEFAULT_MAX_DECOMPRESSED_STREAM_BYTES, DEFAULT_MAX_INPUT_BYTES, DocumentLoadOptions,
+    PdfDocument,
+};
+pub use error::{PdfError, PdfResult};
+pub use inspect::{PdfObjectId, PdfObjectInfo, PdfObjectKind};
+pub use metadata::{DocumentMetadata, PdfWarning};
+pub use page::{PageDimensions, PageInfo, PdfRectangle};
 
 #[cfg(test)]
 mod tests {
