@@ -52,6 +52,8 @@ Before editing:
 2. Identify whether the change affects a public Rust API, the WASM wire contract, the JavaScript module contract, or persisted/exported data.
 3. Preserve unrelated user changes in a dirty worktree.
 
+Use Git throughout implementation. Make focused commits after coherent slices (for example, a dependency/build change, a viewer change, or a test/documentation change) so architectural work is easy to review and revert. Do not rewrite or squash existing user commits unless explicitly asked.
+
 When implementing:
 
 1. Prefer the smallest modular change that preserves the documented boundaries.

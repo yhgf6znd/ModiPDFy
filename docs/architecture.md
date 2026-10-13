@@ -7,7 +7,7 @@ ModiPDFy is a static, client-only web application. Its trusted editing path is:
 1. The user selects a local file through a browser API.
 2. JavaScript supplies the bytes to the Rust/WASM adapter.
 3. Rust parses the PDF, exposes page metadata and text geometry needed by the UI, and applies annotation operations.
-4. PDF.js renders the original or current document for viewing. It does not own the editable PDF model.
+4. PDF.js renders the original or current document for viewing and supplies text/annotation display geometry. It does not own the editable PDF model.
 5. Rust exports PDF bytes, which JavaScript offers as a local download or File System Access API save.
 
 There is no application backend, account system, document sync, remote conversion service, or telemetry pipeline. GitHub Pages serves immutable static assets only.
@@ -25,7 +25,8 @@ The core release must preserve existing page content. A simple annotation must b
                 v                               v
 ┌───────────────────────────────┐   ┌───────────────────────────┐
 │ PDF.js viewing adapter         │   │ modipdfy-wasm              │
-│ rendering, page/text geometry  │   │ wasm-bindgen boundary      │
+│ rendering, text/annotation     │   │ wasm-bindgen boundary      │
+│ layers, page geometry          │   │                             │
 └───────────────────────────────┘   └─────────────┬─────────────┘
                                                   v
                                   ┌──────────────────────────────┐
@@ -100,7 +101,9 @@ The frontend uses native ES modules and should keep modules narrow:
 - `app.js`: composition root; bootstraps the application and wires dependencies.
 - `state/store.js`: immutable-ish application/session state, selection, active tool, and dirty status.
 - `pdf/document-session.js`: local file lifecycle, WASM document handle, operation queue, export requests, and cleanup.
-- `pdf/pdfjs-viewer.js`: PDF.js loading, page rendering, text-layer integration, viewport transforms, and visible-page management.
+- `pdf-viewer.js`: PDF.js loading, page rendering, text/annotation-layer integration, viewport transforms, and visible-page management.
+- `coordinates.js`: the only CSS/canvas/PDF coordinate conversion module; it delegates page rotation and crop-box transforms to PDF.js viewports.
+- `pdfjs-loader.js`: isolates the pinned, same-origin PDF.js runtime and worker configuration.
 - `wasm-bridge.js`: the only module that knows the generated WASM public API and error envelope; it validates JavaScript inputs and owns document disposal.
 - `annotations/model.js`: UI projections of Rust annotation data; no PDF byte mutation.
 - `annotations/interaction.js`: pointer, keyboard, selection, drag, resize, and freehand capture.
@@ -110,13 +113,13 @@ The frontend uses native ES modules and should keep modules narrow:
 - `platform/storage.js`: optional local preferences only; never persist document bytes or telemetry without a future, explicit design decision.
 - `pwa/register-service-worker.js`: service-worker registration and update UX.
 
-No module other than `wasm-bridge.js` calls the WASM exports directly. No module other than `pdfjs-viewer.js` depends on PDF.js internals. The UI overlay is a view of the Rust-backed annotation state, not a replacement source of truth.
+No module other than `wasm-bridge.js` calls the WASM exports directly. No module other than `pdf-viewer.js` and `pdfjs-loader.js` depends on PDF.js internals. The UI overlay is a view of the Rust-backed annotation state, not a replacement source of truth.
 
 ## 6. PDF coordinate conventions
 
 Canonical coordinates are PDF user-space points: 1/72 inch, origin at the lower-left of the page’s effective media/crop coordinate space. A page’s crop box and rotation are part of page metadata and must not be ignored.
 
-The UI normally receives viewport coordinates from PDF.js: origin at the top-left, y increasing downward, and dimensions in CSS/device pixels after scale and rotation. Conversion is centralized in one tested module and must use the PDF.js viewport transform rather than duplicated ad-hoc formulas.
+The UI normally receives viewport coordinates from PDF.js: origin at the top-left, y increasing downward, and dimensions in CSS pixels after scale and rotation. Canvas backing stores are CSS dimensions multiplied by `devicePixelRatio`; this affects raster sharpness, not PDF coordinate conversion. Conversion is centralized in `coordinates.js` and must use the PDF.js viewport transform rather than duplicated ad-hoc formulas.
 
 For an unrotated page with effective width `W`, height `H`, and scale `s`:
 
@@ -194,7 +197,7 @@ Every export feature needs a round-trip test: export, reopen through `modipdfy-p
 
 The app is a static site with a web app manifest and service worker. The service worker precaches the shell, CSS, JavaScript, pinned PDF.js assets, WASM binary, icons, and manifest. Cache names are versioned and old caches are removed only during an explicit activate step.
 
-The service worker must use the GitHub Pages repository base path correctly; asset URLs are generated from the deployed base path, not assumed to be rooted at `/`. Navigation falls back to the cached shell. The application must show a meaningful update/offline status and must not block document editing on an update check.
+The service worker must use the GitHub Pages repository base path correctly; asset URLs are generated from the deployed base path, not assumed to be rooted at `/`. The build emits a PDF.js asset manifest so CMaps and standard fonts are precached along with the worker and viewer shell. Navigation falls back to the cached shell. The application must show a meaningful update/offline status and must not block document editing on an update check.
 
 Core document flows must work after a successful first online load with the network disabled. Remote fonts, remote scripts, CDN PDF.js, runtime package fetches, and API calls are not allowed in the offline path. Source PDFs, temporary WASM state, and exports remain in memory or are explicitly saved by the user; they are not silently uploaded.
 

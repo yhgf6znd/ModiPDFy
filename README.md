@@ -11,7 +11,7 @@ The initial release is intentionally focused:
 - create handwritten signatures; and
 - export a modified PDF without uploading the source document.
 
-Editing existing PDF text and images, compression, OCR, and cryptographic signatures are future work. No PDF editing implementation is included yet; this repository currently establishes the architecture and development contract.
+Editing existing PDF text and images, compression, OCR, and cryptographic signatures are future work. The current browser slice provides local multipage viewing, zoom, navigation, PDF.js text selection, and rotation-aware geometry scaffolding; annotation mutation and export are next.
 
 ## Architecture at a glance
 
@@ -46,7 +46,7 @@ After installing Rust, wasm-pack, and Node.js, build the complete static applica
 npm run build
 ```
 
-The deployable files are written to `dist/`. The command builds the Rust/WASM package, copies the framework-free frontend, and keeps all asset references relative so the result works at a GitHub Pages project subpath. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
+The deployable files are written to `dist/`. The command builds the Rust/WASM package, vendors the pinned PDF.js runtime and worker, copies the framework-free frontend, and keeps all asset references relative so the result works at a GitHub Pages project subpath. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
 
 ## Planned technology
 
@@ -63,4 +63,4 @@ The application has no document server. A release must not send PDF bytes, annot
 
 ## Status
 
-Initial Rust/WASM and framework-free web scaffold with a native lopdf-backed document engine. PDF rendering and annotation editing are not implemented yet.
+Initial Rust/WASM and framework-free web viewer with a native lopdf-backed document engine. PDF annotations and export mutation are not implemented yet.

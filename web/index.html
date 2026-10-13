@@ -7,18 +7,53 @@
     <meta name="description" content="A privacy-first PDF editor that runs in your browser.">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="./pdfjs/pdf_viewer.css">
     <title>ModiPDFy</title>
   </head>
   <body>
-    <main class="app-shell">
-      <section class="welcome-card" aria-labelledby="app-title">
-        <p class="eyebrow">Private by design</p>
-        <h1 id="app-title">ModiPDFy</h1>
-        <p class="lede">A browser-native PDF editor. Your documents stay on your device.</p>
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="brand">
+          <p class="eyebrow">Private by design</p>
+          <h1>ModiPDFy</h1>
+        </div>
+        <div class="file-actions">
+          <label class="button button-primary" for="file-input">Open PDF</label>
+          <input id="file-input" type="file" accept="application/pdf,.pdf" hidden>
+          <span id="document-name" class="document-name">No document open</span>
+        </div>
+      </header>
+
+      <section class="toolbar" aria-label="PDF controls">
+        <button id="previous-page" class="button" type="button" disabled aria-label="Previous page">Previous</button>
+        <label class="page-control" for="page-input">
+          <span class="visually-hidden">Current page</span>
+          <input id="page-input" type="number" min="1" value="0" inputmode="numeric" disabled>
+          <span aria-hidden="true">/</span>
+          <span id="page-count">0</span>
+        </label>
+        <button id="next-page" class="button" type="button" disabled aria-label="Next page">Next</button>
+        <span class="toolbar-divider" aria-hidden="true"></span>
+        <button id="zoom-out" class="button" type="button" disabled aria-label="Zoom out">−</button>
+        <span id="zoom-level" class="zoom-level" aria-live="polite">100%</span>
+        <button id="zoom-in" class="button" type="button" disabled aria-label="Zoom in">+</button>
+        <button id="fit-width" class="button" type="button" disabled>Fit width</button>
+        <button id="fit-page" class="button" type="button" disabled>Fit page</button>
+      </section>
+
+      <main id="viewer-viewport" class="viewer-viewport" tabindex="0" aria-label="PDF document viewer">
+        <div id="dropzone" class="dropzone" role="status">
+          <p class="dropzone-title">Open a PDF to begin</p>
+          <p>Choose a local file or drag it here. The document stays in this browser.</p>
+        </div>
+        <div id="pdf-pages" class="pdf-pages" aria-live="off"></div>
+      </main>
+
+      <footer class="app-footer">
         <p id="status" class="status" role="status">Loading the Rust/WASM core…</p>
         <p class="version-line">Core version: <span id="version">Loading…</span></p>
-      </section>
-    </main>
+      </footer>
+    </div>
     <script type="module" src="./js/main.js"></script>
   </body>
 </html>

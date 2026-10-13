@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ModiPDFy viewer tests</title>
+    <link rel="stylesheet" href="../../web/pdfjs/pdf_viewer.css">
+    <style>
+      #viewer { width: 640px; height: 480px; overflow: auto; }
+      #pages { display: grid; justify-items: center; gap: 12px; }
+      .pdf-page { position: relative; width: max-content; }
+      .page-stage { position: relative; background: white; }
+      .pdf-canvas, .text-layer, .annotation-layer { position: absolute; inset: 0; }
+      .text-layer { user-select: text; }
+      body { background: #e8edf4; font-family: sans-serif; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ModiPDFy viewer tests</h1>
+      <p id="result" role="status">Running…</p>
+      <div id="viewer"><div id="pages"></div></div>
+    </main>
+    <script type="module" src="./viewer.test.js"></script>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 # Development guide
 
-This guide describes the intended workflow while ModiPDFy is being built. The repository is currently documentation-first; implementation commands below become active as the corresponding workspace files are introduced.
+This guide describes the intended workflow while ModiPDFy is being built. The repository contains the initial native Rust/WASM boundary and browser PDF.js viewer. Annotation mutation and export workflows are intentionally still staged behind the documented interfaces.
 
 ## Prerequisites
 
@@ -92,7 +92,7 @@ npm run preview
 npm test
 ```
 
-`npm run dev` builds the WASM package and serves `web/` at localhost. `npm run preview` serves the already-built `dist/` directory. `npm test` runs formatting, clippy, native tests, the WASM build, Node-executed bridge contract tests, JavaScript syntax checks, and the production static build. The scripts use only Node.js built-ins and do not add runtime frontend dependencies.
+`npm run dev` builds the WASM package, vendors PDF.js, and serves the static `dist/` directory at localhost. `npm run preview` serves the already-built `dist/` directory. `npm test` runs formatting, clippy, native tests, the WASM build, Node-executed bridge/coordinate tests, JavaScript syntax checks, and the production static build. The scripts use only Node.js built-ins; PDF.js is a pinned development dependency whose browser assets are copied into the static build.
 
 The browser integration harness is [`tests/browser/index.html`](../tests/browser/index.html). To run it in a browser, build the project, serve the repository root, and open `/tests/browser/index.html`:
 
@@ -101,7 +101,7 @@ npm run build
 node scripts/serve.mjs .
 ```
 
-It exercises initialization, typed-array PDF loading, page count, page dimensions, export, malformed-input errors, explicit disposal, and repeated open/close operations. The browser harness uses the same [`web/js/wasm-bridge.js`](../web/js/wasm-bridge.js) module used by the application.
+It exercises initialization, typed-array PDF loading, page count, page dimensions, export, malformed-input errors, explicit disposal, and repeated open/close operations. The viewer smoke page is [`tests/browser/viewer.html`](../tests/browser/viewer.html); it uses the same [`web/js/pdf-viewer.js`](../web/js/pdf-viewer.js) module used by the application and documents the browser-only rendering checks.
 
 ## Test expectations
 
@@ -124,7 +124,7 @@ Before adding a dependency:
 - compare its capability with existing code to avoid unnecessary surface area; and
 - record the decision in the change description and license inventory.
 
-Pin PDF.js and its worker to a reviewed version. Keep the PDF.js worker and all WASM assets same-origin and included in the PWA precache. Never load them from a CDN at runtime.
+Pin PDF.js and its worker to a reviewed version. The current build pins `pdfjs-dist` to 3.11.174 because the repository supports Node 18, then copies the browser bundle, worker, viewer CSS, CMaps, standard fonts, and Apache-2.0 notice into `web/pdfjs/`. Keep those assets and all WASM assets same-origin and included in the PWA precache. Never load them from a CDN at runtime.
 
 ## Release checklist
 

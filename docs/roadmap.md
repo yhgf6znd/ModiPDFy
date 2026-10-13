@@ -11,18 +11,18 @@ Status: documented.
 
 ## Phase 1 — browser shell and PDF viewing
 
-Status: in progress.
+Status: in progress — browser viewer slice delivered.
 
 Deliver a minimal offline-capable static app:
 
 - Cargo workspace with native-testable core, PDF adapter, and thin WASM adapter.
 - Local file open and explicit local save/download.
-- PDF.js rendering with page navigation, zoom, rotation-aware viewport metadata, and text-layer selection geometry.
+- PDF.js rendering with local file/drop open, multipage scrolling, page navigation, zoom/fit controls, lazy visible-page rendering, rotation-aware viewport metadata, DPR-aware canvases, and text-layer selection geometry.
 - Native lopdf-backed document loading, metadata, page inspection, object inspection, and unchanged save/reopen are implemented in `modipdfy-core`.
 - PWA manifest, service worker, versioned cache, and GitHub Pages base-path support.
 - Resource limits and safe errors for malformed/oversized PDFs.
 
-Exit evidence: a cached app opens and renders a local fixture with the network disabled, and the source file never leaves the browser.
+Exit evidence: a cached app opens and renders single/multipage fixtures with the network disabled, and the source file never leaves the browser. Browser integration coverage for offline reload, large documents, and device-specific memory behavior remains open.
 
 ## Phase 2 — annotation foundation
 
@@ -75,6 +75,6 @@ Each future feature must preserve the same browser-only privacy boundary and mus
 4. **Large-document memory use.** Holding source bytes, parsed objects, rendered canvases, and WASM memory together may exceed browser limits. Streaming or page-scoped strategies may be needed without compromising export correctness.
 5. **Malformed-PDF denial of service.** Memory safety does not prevent excessive CPU or allocation. Limits, time budgeting, and fuzzing must be validated before accepting arbitrary local files.
 6. **Signature representation.** A handwritten visual signature is not a cryptographic digital signature. The UI and exported metadata must avoid implying legal authenticity until a separate digital-signature design exists.
-7. **PDF.js and Rust/WASM packaging.** Worker paths, cross-origin isolation assumptions, asset pinning, and GitHub Pages subpaths need deployment tests.
+7. **PDF.js and Rust/WASM packaging.** Worker paths, cross-origin isolation assumptions, asset pinning, CMap/font precaching, and GitHub Pages subpaths need deployment tests.
 8. **Browser API variability.** File System Access API and persistent storage are not universal. Download via `Blob` must remain the portable baseline.
 9. **Undo/redo and export state.** The design must keep operation history useful without retaining unbounded full-document copies or confusing PDF object identity with session annotation IDs.
