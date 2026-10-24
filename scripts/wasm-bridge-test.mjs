@@ -167,6 +167,12 @@ await assert.rejects(
   () => exportPdfBytes({ documentHandle, annotations: malformedEditorId, reopen: openPdfDocument }),
   (error) => error instanceof WasmBridgeError && error.code === "invalid_export_state",
 );
+for (const malformedAnnotation of [null, { ...malformedEditorId[0], pageIndex: 0.5 }, { ...malformedEditorId[0], pageIndex: 99 }]) {
+  await assert.rejects(
+    () => exportPdfBytes({ documentHandle, annotations: [malformedAnnotation], reopen: openPdfDocument }),
+    (error) => error instanceof WasmBridgeError && error.code === "invalid_export_state",
+  );
+}
 assert(saved instanceof Uint8Array);
 assert(saved.byteLength > 0);
 assert.deepEqual(source, originalSource, "export mutated the original browser-owned bytes");

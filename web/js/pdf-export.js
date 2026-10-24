@@ -120,9 +120,10 @@ export function validateExportState(documentHandle, annotations) {
   const pageCount = documentHandle.pageCount();
   const ids = new Set();
   for (const annotation of annotations) {
+    if (!annotation || typeof annotation !== "object" || Array.isArray(annotation)) fail("Annotation record is invalid.");
+    if (!Number.isSafeInteger(annotation.pageIndex) || annotation.pageIndex < 0 || annotation.pageIndex >= pageCount) fail(`${annotation.editorId || "Annotation"} refers to an invalid page.`);
     if (ids.has(annotation.editorId)) fail(`Duplicate annotation ID: ${annotation.editorId}.`);
     ids.add(annotation.editorId);
-    if (annotation.pageIndex >= pageCount) fail(`${annotation.editorId} refers to a missing page.`);
     validateAnnotation(annotation, documentHandle.pageInfo(annotation.pageIndex));
   }
   const rustAnnotations = documentHandle.listAnnotations();
