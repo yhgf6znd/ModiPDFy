@@ -257,6 +257,21 @@ async function run() {
   await interaction.deleteSelected();
   await new Promise((resolve) => setTimeout(resolve, 30));
   assert(!documentHandle.listAnnotations().some((annotation) => annotation.editorId === text.editorId), "delete did not reach Rust");
+  const failedAnnotation = { ...placedSignature, editorId: "failed-command", annotationType: "Text", position: { x: -1, y: -1 }, content: { text: "rejected" } };
+  let persistenceRejected = false;
+  try {
+    await interaction.persistCommand({ type: "add", annotation: failedAnnotation });
+  } catch {
+    persistenceRejected = true;
+  }
+  assert(persistenceRejected, "failed Rust annotation command did not reject");
+  let flushRejected = false;
+  try {
+    await interaction.flush();
+  } catch {
+    flushRejected = true;
+  }
+  assert(flushRejected, "export flush did not reject after a failed Rust command");
   documentHandle.dispose();
   result.dataset.status = "pass";
   result.textContent = "Annotation interaction tests passed.";

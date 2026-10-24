@@ -156,6 +156,7 @@ export class AnnotationInteraction {
     this.textDraft = null;
     this.pendingSignature = null;
     this.commandQueue = Promise.resolve();
+    this.commandError = null;
     this.pagesElement.addEventListener("pointerdown", (event) => this.#pointerDown(event));
     this.pagesElement.addEventListener("pointermove", (event) => this.#pointerMove(event));
     this.pagesElement.addEventListener("pointerup", (event) => this.#pointerUp(event));
@@ -179,7 +180,9 @@ export class AnnotationInteraction {
   }
 
   flush() {
-    return this.commandQueue;
+    return this.commandQueue.then(() => {
+      if (this.commandError) throw this.commandError;
+    });
   }
 
   setTool(tool) {
@@ -347,17 +350,23 @@ export class AnnotationInteraction {
     }
     if (this.gesture.type === "resize") {
       const old = this.gesture.original.bounds;
+      const pageInfo = this.getPageInfo(this.gesture.pageIndex);
+      const crop = pageInfo?.cropBox;
       let newBounds;
       if (this.gesture.original.annotationType === AnnotationType.SIGNATURE) {
         const ratio = (old.right - old.left) / Math.max(old.top - old.bottom, 0.0001);
         const width = Math.max(MIN_RESIZE_WIDTH, point.x - old.left);
         const height = Math.max(MIN_RESIZE_HEIGHT, point.y - old.bottom);
-        const proportionalWidth = Math.max(width, height * ratio);
+        const requestedWidth = Math.max(width, height * ratio);
+        const maxWidth = crop ? Math.max(MIN_RESIZE_WIDTH, Math.min(crop.right - old.left, (crop.top - old.bottom) * ratio)) : requestedWidth;
+        const proportionalWidth = Math.min(requestedWidth, maxWidth);
         newBounds = makeBounds(old.left, old.bottom, old.left + proportionalWidth, old.bottom + proportionalWidth / ratio);
       } else {
-        newBounds = makeBounds(old.left, old.bottom, Math.max(old.left + MIN_RESIZE_WIDTH, point.x), Math.max(old.bottom + MIN_RESIZE_HEIGHT, point.y));
+        const right = Math.max(old.left + MIN_RESIZE_WIDTH, point.x);
+        const top = Math.max(old.bottom + MIN_RESIZE_HEIGHT, point.y);
+        newBounds = makeBounds(old.left, old.bottom, crop ? Math.min(right, crop.right) : right, crop ? Math.min(top, crop.top) : top);
       }
-      const next = clampToPage(resizeAnnotation(this.gesture.original, newBounds), this.getPageInfo(this.gesture.pageIndex));
+      const next = resizeAnnotation(this.gesture.original, newBounds);
       this.store.setPreview(this.gesture.original.editorId, next);
     }
   }
@@ -592,6 +601,7 @@ export class AnnotationInteraction {
 
   #persistCommand(command, restoreCommand = null) {
     const operation = this.commandQueue.then(async () => {
+      this.commandError = null;
       if (!this.documentHandle) throw new Error("No Rust document is open.");
       if (command.type === "add") {
         this.#addToRust(command.annotation);
@@ -616,6 +626,7 @@ export class AnnotationInteraction {
       }
     });
     this.commandQueue = operation.catch((error) => {
+      this.commandError = error;
       if (restoreCommand) {
         this.store.restoreCommand(restoreCommand);
         if (restoreCommand.type === "add") {
