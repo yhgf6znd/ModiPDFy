@@ -83,6 +83,11 @@ export class AnnotationStore {
     return [...this.annotations.keys()].map((editorId) => this.get(editorId)).filter(Boolean);
   }
 
+  /** Return only committed values; transient pointer previews are never exportable. */
+  committedValues() {
+    return [...this.annotations.values()];
+  }
+
   valuesForPage(pageIndex) {
     return this.values().filter((annotation) => annotation.pageIndex === pageIndex);
   }

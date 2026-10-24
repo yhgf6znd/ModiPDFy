@@ -41,6 +41,7 @@ run(process.execPath, ["--check", "web/js/annotation-overlay.js"]);
 run(process.execPath, ["--check", "web/js/annotation-interaction.js"]);
 run(process.execPath, ["--check", "web/js/wasm-client.js"]);
 run(process.execPath, ["--check", "web/js/wasm-bridge.js"]);
+run(process.execPath, ["--check", "web/js/pdf-export.js"]);
 run(process.execPath, ["--check", "web/js/coordinates.js"]);
 run(process.execPath, ["--check", "web/js/signature-pad.js"]);
 run(process.execPath, ["--check", "web/js/signature-storage.js"]);

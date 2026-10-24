@@ -4,6 +4,7 @@ import { AnnotationStore, Tool, makeStyle } from "./annotation-model.js";
 import { PdfViewer } from "./pdf-viewer.js";
 import { colorFromHex } from "./annotation-interaction.js";
 import { loadWasm, openPdfDocument } from "./wasm-client.js";
+import { downloadPdf, exportPdfBytes, suggestedFilename } from "./pdf-export.js";
 import { SignaturePad } from "./signature-pad.js";
 import { deleteStoredSignature, listStoredSignatures, saveStoredSignature } from "./signature-storage.js";
 
@@ -190,7 +191,9 @@ async function openFile(file) {
     selectedAnnotation = null;
     interaction.setSelected(null);
     elements.documentName.textContent = file.name;
-    setStatus("Ready. Select a tool to annotate this local document.");
+    const metadata = documentHandle.metadata();
+    const warning = metadata.warnings?.[0];
+    setStatus(warning ? `Opened with warning: ${warning}` : "Ready. Select a tool to annotate this local document.", warning ? "warning" : "ready");
     updateDocumentControls();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown PDF error";
@@ -202,15 +205,13 @@ async function exportPdf() {
   if (!documentHandle) return;
   try {
     await interaction?.flush();
-    const bytes = documentHandle.save();
-    const blob = new Blob([bytes], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = elements.documentName.textContent.replace(/\.pdf$/i, "") + "-annotated.pdf";
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-    setStatus("Annotated PDF exported to your device.");
+    const bytes = await exportPdfBytes({
+      documentHandle,
+      annotations: store.committedValues(),
+      reopen: openPdfDocument,
+    });
+    downloadPdf(bytes, suggestedFilename(elements.documentName.textContent));
+    setStatus("Modified PDF exported to your device.");
   } catch (error) {
     setStatus(`Could not export PDF: ${error instanceof Error ? error.message : String(error)}`, "error");
   }

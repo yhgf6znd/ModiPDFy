@@ -3,6 +3,7 @@ import { AnnotationInteraction } from "../../web/js/annotation-interaction.js";
 import { AnnotationStore, Tool } from "../../web/js/annotation-model.js";
 import { PdfViewer } from "../../web/js/pdf-viewer.js";
 import { openPdfDocument } from "../../web/js/wasm-bridge.js";
+import { exportPdfBytes, suggestedFilename } from "../../web/js/pdf-export.js";
 import { SignaturePad } from "../../web/js/signature-pad.js";
 import { createPdfFixture } from "./pdf-fixture.js";
 
@@ -132,7 +133,8 @@ async function run() {
   await interaction.redo();
   await interaction.flush();
   assert(documentHandle.listAnnotations().filter((annotation) => annotation.annotationType === "Signature").length === 1, "redo did not delete signature again");
-  const exported = documentHandle.save();
+  const exported = await exportPdfBytes({ documentHandle, annotations: store.committedValues(), reopen: openPdfDocument });
+  assert(suggestedFilename("contract.pdf") === "contract-modified.pdf", "export filename was not derived safely");
   const reopenedSignatureDocument = await openPdfDocument(exported);
   assert(reopenedSignatureDocument.listAnnotations().filter((annotation) => annotation.annotationType === "Signature").length === 1, "exported signatures did not reopen");
   reopenedSignatureDocument.dispose();

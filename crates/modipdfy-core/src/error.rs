@@ -46,6 +46,8 @@ pub enum PdfError {
     AnnotationNotFound { editor_id: String },
     /// Editing or rewriting would invalidate a detected document signature.
     SignedDocument { operation: &'static str },
+    /// Editing or rewriting an encrypted document is unsupported without a password workflow.
+    EncryptedDocument { operation: &'static str },
 }
 
 impl Display for PdfError {
@@ -101,6 +103,9 @@ impl Display for PdfError {
             }
             Self::SignedDocument { operation } => {
                 write!(formatter, "cannot {operation} a document containing a PDF signature")
+            }
+            Self::EncryptedDocument { operation } => {
+                write!(formatter, "cannot {operation} an encrypted PDF without password support")
             }
         }
     }

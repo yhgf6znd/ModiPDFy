@@ -257,6 +257,39 @@ impl ModiPdfDocument {
         document.save_to_bytes().map_err(pdf_error)
     }
 
+    /// Return document safety metadata and export warnings as plain JavaScript data.
+    #[wasm_bindgen(js_name = documentMetadata)]
+    pub fn document_metadata(&self) -> Result<JsValue, JsValue> {
+        let metadata = self.document()?.metadata();
+        let object = Object::new();
+        set_property(&object, "encrypted", &JsValue::from_bool(metadata.encrypted))?;
+        set_property(&object, "wasEncrypted", &JsValue::from_bool(metadata.was_encrypted))?;
+        set_property(
+            &object,
+            "signatureCount",
+            &JsValue::from_f64(metadata.signature_count as f64),
+        )?;
+        set_property(
+            &object,
+            "hasIncrementalUpdates",
+            &JsValue::from_bool(metadata.has_incremental_updates),
+        )?;
+        set_property(&object, "pageCount", &JsValue::from_f64(metadata.page_count as f64))?;
+        let warnings = Array::new();
+        for warning in metadata.warnings {
+            let message = match warning {
+                modipdfy_core::PdfWarning::SignaturesDetected { count } => format!("Detected {count} PDF signature object(s)."),
+                modipdfy_core::PdfWarning::SignatureValidityNotGuaranteed => "Rewriting would not preserve cryptographic signature validity.".to_string(),
+                modipdfy_core::PdfWarning::EncryptedDocument => "Encrypted PDF editing is unsupported without a password workflow.".to_string(),
+                modipdfy_core::PdfWarning::IncrementalUpdatesDetected => "The PDF contains incremental updates; rewriting may change its incremental history.".to_string(),
+            };
+            warnings.push(&JsValue::from_str(&message));
+        }
+        let warnings_value: JsValue = warnings.into();
+        set_property(&object, "warnings", &warnings_value)?;
+        Ok(object.into())
+    }
+
     /// Release the native document immediately. Calling this method more than once is safe.
     #[wasm_bindgen]
     pub fn dispose(&mut self) {
@@ -659,6 +692,7 @@ fn pdf_error(error: PdfError) -> JsValue {
         | PdfError::AnnotationNotFound { .. } => ("invalid_annotation", true),
         PdfError::AnnotationParse { .. } => ("annotation_parse_failed", false),
         PdfError::SignedDocument { .. } => ("signed_document", false),
+        PdfError::EncryptedDocument { .. } => ("encrypted_document", false),
     };
     structured_error(code, &error.to_string(), recoverable)
 }

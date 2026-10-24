@@ -128,6 +128,18 @@ class PdfDocumentHandle {
     }
   }
 
+  /** Return Rust-reported document safety and export metadata. */
+  metadata() {
+    const document = this.#requireDocument();
+    try {
+      const metadata = document.documentMetadata();
+      if (!metadata || typeof metadata !== "object") throw new WasmBridgeError("invalid_wasm_result", "WASM returned invalid document metadata.", false);
+      return metadata;
+    } catch (error) {
+      throw translateWasmError(error);
+    }
+  }
+
   /** Return the Rust-backed supported annotation projection. */
   listAnnotations() {
     const document = this.#requireDocument();

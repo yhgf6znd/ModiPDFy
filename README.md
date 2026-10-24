@@ -11,7 +11,7 @@ The initial release is intentionally focused:
 - create reusable visual handwritten signatures with mouse, pen, or touch input; and
 - export a modified PDF without uploading the source document.
 
-Editing existing PDF text and images, compression, OCR, and cryptographic signatures are future work. The current release slice provides a native object-preserving Text/FreeText, Ink, Highlight, and visual Signature-as-Ink engine, a browser editing overlay, selection/move/resize/delete interactions, keyboard shortcuts, and local export. Notes, richer undo/redo integration, and independent-reader regression coverage remain on the roadmap.
+Editing existing PDF text and images, compression, OCR, and cryptographic signatures are future work. The current release slice provides a native object-preserving Text/FreeText, Ink, Highlight, and visual Signature-as-Ink engine, a browser editing overlay, selection/move/resize/delete interactions, keyboard shortcuts, and local export. Notes and broader viewer interoperability remain on the roadmap. The current export path validates committed state, reopens the output through Rust/WASM, and has local independent-reader regression checks with Poppler and Ghostscript.
 
 ## Architecture at a glance
 

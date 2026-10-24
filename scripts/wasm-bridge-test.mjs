@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
-import { createPdfFixture } from "../tests/browser/pdf-fixture.js";
+import { createMultipagePdfFixture } from "../tests/browser/pdf-fixture.js";
+import { exportPdfBytes } from "../web/js/pdf-export.js";
 import {
   initializeWasm,
   openPdfDocument,
@@ -12,9 +16,11 @@ const wasmBytes = await readFile(new URL("../web/pkg/modipdfy_wasm_bg.wasm", imp
 const wasmModule = await WebAssembly.compile(wasmBytes);
 await initializeWasm({ module_or_path: wasmModule });
 
-const source = createPdfFixture();
+const source = createMultipagePdfFixture(3);
 const documentHandle = await openPdfDocument(source);
-assert.equal(documentHandle.pageCount(), 1);
+assert.equal(documentHandle.pageCount(), 3);
+assert.equal(documentHandle.pageInfo(1).rotationDegrees, 90);
+assert.equal(documentHandle.pageInfo(2).rotationDegrees, 180);
 assert.deepEqual(documentHandle.pageInfo(0), {
   pageIndex: 0,
   width: 612,
@@ -78,9 +84,26 @@ assert.throws(
 );
 
 
-const saved = documentHandle.save();
+const saved = await exportPdfBytes({ documentHandle, annotations: documentHandle.listAnnotations(), reopen: openPdfDocument });
 assert(saved instanceof Uint8Array);
 assert(saved.byteLength > 0);
+
+const exportDirectory = await mkdtemp(join(tmpdir(), "modipdfy-export-"));
+try {
+  const exportPath = join(exportDirectory, "modified.pdf");
+  await writeFile(exportPath, saved);
+  const pdfInfo = execFileSync("pdfinfo", [exportPath], { encoding: "utf8" });
+  assert.match(pdfInfo, /Pages:\s+3/);
+  const extractedText = execFileSync("pdftotext", [exportPath, "-"], { encoding: "utf8" });
+  assert.match(extractedText, /ModiPDFy page 1/);
+  assert.match(extractedText, /ModiPDFy page 3/);
+  execFileSync("gs", ["-q", "-dSAFER", "-dBATCH", "-dNOPAUSE", "-sDEVICE=nullpage", exportPath]);
+  const renderPrefix = join(exportDirectory, "page");
+  execFileSync("pdftoppm", ["-f", "1", "-l", "1", "-singlefile", "-png", exportPath, renderPrefix]);
+  assert((await stat(`${renderPrefix}.png`)).size > 0);
+} finally {
+  await rm(exportDirectory, { recursive: true, force: true });
+}
 const reopenedAnnotated = await openPdfDocument(saved);
 assert.equal(reopenedAnnotated.listAnnotations().length, 4);
 assert.equal(reopenedAnnotated.listAnnotations().find((annotation) => annotation.annotationType === "Signature")?.content.strokes[0].strokeWidth, 5);
@@ -105,7 +128,7 @@ await assert.rejects(
 
 for (let index = 0; index < 8; index += 1) {
   const repeated = await openPdfDocument(source);
-  assert.equal(repeated.pageCount(), 1);
+  assert.equal(repeated.pageCount(), 3);
   repeated.dispose();
 }
 

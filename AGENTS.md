@@ -42,6 +42,7 @@ Names may evolve, but responsibilities must not collapse into a single crate or 
 - A future `modipdfy-pdf` crate may provide higher-level PDF workflows, but it must build on the core engine rather than duplicate parsing or serialization logic.
 - `modipdfy-wasm` converts small JSON commands and byte buffers at the boundary. It must not contain PDF business rules.
 - JavaScript must not mutate PDF bytes, invent a second annotation model, or rely on private PDF.js internals for export.
+- Route every user-visible export through the validated `web/js/pdf-export.js` workflow: flush pending commands, pass committed state, serialize through the WASM document handle, reopen and verify the result, dispose temporary handles, then download a new `*-modified.pdf` file.
 - PDF.js is a renderer and inspection aid. It is not the export authority.
 - Keep the canonical annotation geometry in PDF user-space points. Convert only at the UI/rendering boundary.
 

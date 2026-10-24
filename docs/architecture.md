@@ -121,6 +121,7 @@ The frontend uses native ES modules and should keep modules narrow:
 - `annotation-overlay.js`: SVG/HTML overlay rendering above PDF.js pages; it renders committed state and transient previews but does not serialize PDFs.
 - `ui/toolbar.js`, `ui/panels.js`, `ui/dialogs.js`: accessible controls and presentation state.
 - `platform/file-io.js`: File, Blob, download, optional File System Access API, and browser capability checks.
+- `pdf-export.js`: committed-state validation, WASM serialization/reopen verification, safe output naming, and local download orchestration. It calls document-handle methods and never touches PDF bytes directly.
 - `platform/storage.js`: optional local preferences only; never persist document bytes or telemetry without a future, explicit design decision.
 - `pwa/register-service-worker.js`: planned extraction for service-worker registration and update UX.
 
@@ -193,6 +194,13 @@ The persisted/export model must distinguish:
 
 This distinction allows undo/redo, conflict checks, object preservation, and future editing of existing annotations without conflating UI state with PDF object numbers.
 
+### Export workflow
+
+`web/js/pdf-export.js` is the browser export coordinator; it does not modify PDF bytes. Before serialization, the UI flushes pending commands and passes only the annotation store's committed values. The coordinator validates page references, crop-box bounds, finite geometry, bounded text/strokes, supported annotation kinds, and Rust membership. It then calls the WASM document handle's `save()`, reopens the returned bytes through the same WASM entry point, verifies page count and annotation IDs, disposes the verification handle, and only then creates a local Blob download.
+
+The selected source file remains immutable in browser memory. Export always produces a new `*-modified.pdf` download and never replaces the input. Existing content, page order, dimensions, and unsupported annotation objects remain Rust/lopdf responsibilities; no page screenshot or canvas flattening is used. Metadata warnings are shown for incremental updates, signatures, and encryption. Dirty rewrites of signed or encrypted documents are rejected; untouched bytes may still be returned unchanged, so the UI never claims cryptographic signature validity.
+
+
 ## 8. Error handling
 
 Errors are typed by layer:
@@ -221,7 +229,7 @@ Testing is layered:
 - Browser annotation coverage must include pen, text commit/edit, highlight selection, selection/move/delete, keyboard cancellation, Rust persistence, and invariant PDF coordinates across zoom and rotation.
 - Accessibility checks for keyboard operation, focus management, labels, contrast, reduced motion, and screen-reader names.
 
-Every export feature needs a round-trip test: export, reopen through `modipdfy-pdf`, render with PDF.js where feasible, and compare the expected annotation/content properties. Fixtures must be legally redistributable and contain no personal documents.
+Every export feature needs a round-trip test: export, reopen through `modipdfy-core` via the WASM bridge, render with PDF.js where feasible, and compare the expected annotation/content properties. The current WASM integration test also validates the exported file with `pdfinfo`, `pdftotext`, Ghostscript, and Poppler `pdftoppm` when those independent tools are installed. Fixtures must be legally redistributable and contain no personal documents.
 
 ## 10. Offline PWA strategy
 

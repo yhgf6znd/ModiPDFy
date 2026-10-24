@@ -298,6 +298,9 @@ impl PdfDocument {
         if self.metadata().signature_count > 0 {
             return Err(PdfError::SignedDocument { operation });
         }
+        if self.metadata().encrypted || self.metadata().was_encrypted {
+            return Err(PdfError::EncryptedDocument { operation });
+        }
         Ok(())
     }
 

@@ -63,6 +63,7 @@ h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.04em; }
 .app-footer { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 1rem; border-top: 1px solid #d8e0eb; border-bottom: 0; }
 .status, .version-line { margin: 0; color: #34445e; font-size: 0.85rem; }
 .status[data-state="error"] { color: #a53737; }
+.status[data-state="warning"] { color: #8a4d20; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 dialog { max-width: min(94vw, 38rem); padding: 0; border: 1px solid #c5cfdd; border-radius: 0.75rem; box-shadow: 0 1rem 3rem rgb(23 32 51 / 25%); color: #172033; }
 dialog::backdrop { background: rgb(23 32 51 / 35%); }
