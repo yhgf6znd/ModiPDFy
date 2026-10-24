@@ -67,6 +67,7 @@ async function run() {
   pointer("pointerdown", stage, penStart.x, penStart.y, 11);
   pointer("pointermove", stage, penMiddle.x, penMiddle.y, 11);
   pointer("pointerup", stage, penEnd.x, penEnd.y, 11);
+  await interaction.flush();
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert(store.values().some((annotation) => annotation.annotationType === "Ink"), "pen gesture did not create ink");
   await waitFor(() => documentHandle.listAnnotations().some((annotation) => annotation.annotationType === "Ink"), "pen annotation was not persisted");
@@ -83,12 +84,31 @@ async function run() {
   draft.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
   await new Promise((resolve) => setTimeout(resolve, 30));
   assert(store.values().some((annotation) => annotation.annotationType === "Text"), "text tool did not commit");
+  await interaction.flush();
   await waitFor(() => documentHandle.listAnnotations().some((annotation) => annotation.annotationType === "Text"), "text annotation was not persisted");
+
+  interaction.setTool(Tool.TEXT);
+  const edgeTextPoint = stagePoint(stage, 300, 5);
+  pointer("pointerdown", stage, edgeTextPoint.x, edgeTextPoint.y, 15);
+  pointer("pointerup", stage, edgeTextPoint.x, edgeTextPoint.y, 15);
+  const edgeDraft = document.querySelector(".annotation-text-draft");
+  assert(edgeDraft, "top-edge text tool did not create an editor");
+  edgeDraft.value = "Top edge text";
+  edgeDraft.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
+  await interaction.flush();
+  const edgeText = documentHandle.listAnnotations().find((annotation) => annotation.content?.text === "Top edge text");
+  assert(edgeText && edgeText.position.y <= edgeText.bounds.top && edgeText.position.y >= edgeText.bounds.bottom, "top-edge text position was not clamped into its bounds");
 
   const text = store.values().find((annotation) => annotation.annotationType === "Text");
   interaction.setTool(Tool.SELECT);
   const textElement = document.querySelector(`[data-editor-id="${text.editorId}"]`);
-  pointer("pointerdown", textElement, textPoint.x, textPoint.y, 13);
+  textElement.focus();
+  textElement.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  assert(document.querySelector(".annotation-text-draft"), "focused text annotation did not activate");
+  document.querySelector(".annotation-text-draft").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert(!document.querySelector(".annotation-text-draft"), "text editor did not close with Escape");
+  const selectedTextElement = document.querySelector(`[data-editor-id="${text.editorId}"]`);
+  pointer("pointerdown", selectedTextElement, textPoint.x, textPoint.y, 13);
   const movedTextPoint = stagePoint(stage, 240, 200);
   pointer("pointermove", document.querySelector("#pages"), movedTextPoint.x, movedTextPoint.y, 13);
   pointer("pointerup", document.querySelector("#pages"), movedTextPoint.x, movedTextPoint.y, 13);

@@ -58,6 +58,12 @@ assert.equal(documentHandle.addTextAnnotation(textAnnotation), "wasm-text-1");
 assert.equal(documentHandle.addInkAnnotation(inkAnnotation), "wasm-ink-1");
 assert.equal(documentHandle.addHighlightAnnotation(highlightAnnotation), "wasm-highlight-1");
 assert.equal(documentHandle.listAnnotations().length, 3);
+const oversizedInk = { ...inkAnnotation, editorId: "wasm-ink-oversized", content: { paths: [Array.from({ length: 100001 }, () => ({ x: 120, y: 180 }))] } };
+assert.throws(
+  () => documentHandle.addInkAnnotation(oversizedInk),
+  (error) => error instanceof WasmBridgeError && error.code === "invalid_annotation",
+);
+
 
 const saved = documentHandle.save();
 assert(saved instanceof Uint8Array);

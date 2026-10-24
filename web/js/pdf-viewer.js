@@ -152,8 +152,15 @@ export class PdfViewer {
 
   async close() {
     this.renderGeneration += 1;
-    this.loadingTask?.destroy();
+    const loadingTask = this.loadingTask;
     this.loadingTask = null;
+    if (loadingTask) {
+      try {
+        await loadingTask.destroy();
+      } catch {
+        // PDF.js may reject destruction after a failed load; the task is no longer reachable.
+      }
+    }
     for (const task of this.renderTasks.values()) {
       task.render?.cancel();
       task.text?.cancel?.();

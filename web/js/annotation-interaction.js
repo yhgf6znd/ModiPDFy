@@ -12,6 +12,7 @@ const MIN_TEXT_WIDTH = 24;
 const MIN_TEXT_HEIGHT = 18;
 const MIN_RESIZE_WIDTH = 8;
 const MIN_RESIZE_HEIGHT = 8;
+const MAX_INK_POINTS = 100_000;
 
 function colorFromHex(value) {
   const normalized = value.replace(/^#/, "");
@@ -126,6 +127,10 @@ export class AnnotationInteraction {
     this.documentHandle = documentHandle;
   }
 
+  flush() {
+    return this.commandQueue;
+  }
+
   setTool(tool) {
     this.tool = tool;
     this.overlay.setTool(tool);
@@ -234,7 +239,7 @@ export class AnnotationInteraction {
     event.preventDefault();
     const point = this.#pointFromEvent(event, this.gesture.pageElement);
     if (this.gesture.type === "draw") {
-      this.gesture.points.push(point);
+      if (this.gesture.points.length < MAX_INK_POINTS) this.gesture.points.push(point);
       this.overlay.setTransient({ pageIndex: this.gesture.pageIndex, points: this.gesture.points, style: this.gesture.style });
       return;
     }
@@ -380,6 +385,7 @@ export class AnnotationInteraction {
     annotation.content.text = text;
     annotation.style = this.controls.textStyle(annotation.style);
     annotation.bounds = clampBounds(annotation.bounds, this.getPageInfo(annotation.pageIndex));
+    annotation.position = { x: annotation.bounds.left, y: annotation.bounds.top };
     if (this.store.get(annotation.editorId)) {
       this.store.commitUpdate(draft.annotation, annotation);
     } else {
@@ -441,6 +447,15 @@ export class AnnotationInteraction {
       return;
     }
     if (isEditableTarget(event.target)) return;
+    const annotationTarget = event.target.closest?.("[data-editor-id]");
+    if (annotationTarget && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      this.setSelected(annotationTarget.dataset.editorId);
+      if (event.key === "Enter" && this.store.get(annotationTarget.dataset.editorId)?.annotationType === AnnotationType.TEXT) {
+        this.editSelected();
+      }
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
       void (event.shiftKey ? this.redo() : this.undo());
@@ -472,11 +487,33 @@ export class AnnotationInteraction {
       } else if (command.type === "remove") {
         this.documentHandle.removeAnnotation(command.annotation.editorId);
       } else if (command.type === "update") {
-        this.documentHandle.removeAnnotation(command.before.editorId);
-        this.#addToRust(command.after);
+        let removed = false;
+        try {
+          this.documentHandle.removeAnnotation(command.before.editorId);
+          removed = true;
+          this.#addToRust(command.after);
+        } catch (error) {
+          if (removed) {
+            try {
+              this.#addToRust(command.before);
+            } catch {
+              this.onStatus("Annotation rollback failed; reload the document before continuing.", "error");
+            }
+          }
+          throw error;
+        }
       }
     }).catch((error) => {
-      if (restoreCommand) this.store.restoreCommand(restoreCommand);
+      if (restoreCommand) {
+        this.store.restoreCommand(restoreCommand);
+        if (restoreCommand.type === "add") {
+          this.setSelected(restoreCommand.annotation.editorId);
+        } else if (restoreCommand.type === "update") {
+          this.setSelected(restoreCommand.after.editorId);
+        } else if (this.selectedId === restoreCommand.annotation.editorId) {
+          this.setSelected(null);
+        }
+      }
       this.onStatus(`Annotation operation failed: ${error instanceof Error ? error.message : String(error)}`, "error");
     });
     return this.commandQueue;

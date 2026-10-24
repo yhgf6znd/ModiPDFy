@@ -735,8 +735,13 @@ fn parse_ink_paths(object: &Object) -> PdfResult<Vec<Vec<PdfPoint>>> {
     let paths = object.as_array().map_err(|_| PdfError::AnnotationParse {
         message: "/InkList is not an array".to_string(),
     })?;
+    if paths.len() > MAX_INK_POINTS {
+        return Err(PdfError::AnnotationParse {
+            message: "ink path count exceeds the point limit".to_string(),
+        });
+    }
     let mut result = Vec::with_capacity(paths.len());
-    let mut count = 0;
+    let mut count = 0usize;
     for path in paths {
         let values = path.as_array().map_err(|_| PdfError::AnnotationParse {
             message: "ink path is not an array".to_string(),
@@ -746,16 +751,28 @@ fn parse_ink_paths(object: &Object) -> PdfResult<Vec<Vec<PdfPoint>>> {
                 message: "ink path has an invalid point count".to_string(),
             });
         }
-        let mut points = Vec::with_capacity(values.len() / 2);
+        let point_count = values.len() / 2;
+        if point_count > MAX_INK_POINTS - count {
+            return Err(PdfError::AnnotationParse {
+                message: "ink point limit exceeded".to_string(),
+            });
+        }
+        let mut points = Vec::with_capacity(point_count);
         for pair in values.chunks_exact(2) {
-            points.push(PdfPoint {
+            let point = PdfPoint {
                 x: f64::from(pair[0].as_float().map_err(|_| PdfError::AnnotationParse {
                     message: "ink coordinate is invalid".to_string(),
                 })?),
                 y: f64::from(pair[1].as_float().map_err(|_| PdfError::AnnotationParse {
                     message: "ink coordinate is invalid".to_string(),
                 })?),
-            });
+            };
+            if !point.is_finite() {
+                return Err(PdfError::AnnotationParse {
+                    message: "ink coordinate is non-finite".to_string(),
+                });
+            }
+            points.push(point);
         }
         count += points.len();
         if count > MAX_INK_POINTS {
@@ -784,6 +801,11 @@ fn parse_quads(object: &Object) -> PdfResult<Vec<PdfQuad>> {
             points[index] = f64::from(value.as_float().map_err(|_| PdfError::AnnotationParse {
                 message: "highlight coordinate is invalid".to_string(),
             })?);
+        }
+        if !points.iter().all(|value| value.is_finite()) {
+            return Err(PdfError::AnnotationParse {
+                message: "highlight coordinate is non-finite".to_string(),
+            });
         }
         quads.push(PdfQuad {
             top_left: PdfPoint { x: points[0], y: points[1] },

@@ -153,6 +153,7 @@ async function openFile(file) {
     return;
   }
   try {
+    await interaction?.flush();
     const buffer = await file.arrayBuffer();
     const wasmBytes = new Uint8Array(buffer);
     const viewerBytes = new Uint8Array(buffer.slice(0));
@@ -181,6 +182,7 @@ async function openFile(file) {
 async function exportPdf() {
   if (!documentHandle) return;
   try {
+    await interaction?.flush();
     const bytes = documentHandle.save();
     const blob = new Blob([bytes], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);

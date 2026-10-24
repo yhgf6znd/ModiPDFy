@@ -136,15 +136,17 @@ impl PdfDocument {
 
     /// Serialize the document to new bytes without filesystem access.
     ///
-    /// An untouched document returns a copy of its original input. Future core editing
-    /// operations can use the crate-private mutation hook and will then serialize through
-    /// lopdf while retaining the original input in this object.
+    /// An untouched document returns a copy of its original input. Future core editing operations
+    /// can use the crate-private mutation hook and will serialize through lopdf. The retained
+    /// source buffer is released after a successful rewrite.
     pub fn save_to_bytes(&mut self) -> PdfResult<Vec<u8>> {
         if !self.dirty {
             return Ok(self.source_bytes.clone());
         }
         self.ensure_editable("rewrite")?;
-        serialization::serialize(&mut self.document)
+        let bytes = serialization::serialize(&mut self.document)?;
+        self.source_bytes = Vec::new();
+        Ok(bytes)
     }
 
     /// Add a native PDF FreeText annotation and return its editor identifier.

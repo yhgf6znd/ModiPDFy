@@ -3,8 +3,8 @@
 use js_sys::{Array, Object, Reflect};
 use modipdfy_core::{
     Annotation, AnnotationContent, AnnotationId, AnnotationStyle, HighlightAnnotation,
-    InkAnnotation, PageInfo, PdfColor, PdfDocument, PdfError, PdfPoint, PdfQuad, PdfRectangle,
-    TextAnnotation,
+    InkAnnotation, MAX_HIGHLIGHT_QUADS, MAX_INK_POINTS, PageInfo, PdfColor, PdfDocument, PdfError,
+    PdfPoint, PdfQuad, PdfRectangle, TextAnnotation,
 };
 use wasm_bindgen::prelude::*;
 
@@ -45,12 +45,12 @@ pub struct ModiPdfPageInfo {
 impl ModiPdfDocument {
     /// Open a PDF from a JavaScript `Uint8Array`.
     ///
-    /// The generated binding copies the typed-array bytes once into Rust-owned memory. The core
-    /// then takes ownership of that buffer so it can preserve the original source bytes without
-    /// another copy.
+    /// The generated binding transfers the typed-array bytes into Rust-owned memory. The core
+    /// takes ownership of that buffer so it can preserve the original source bytes without
+    /// an additional application-level copy.
     #[wasm_bindgen(js_name = open)]
-    pub fn open(bytes: &[u8]) -> Result<ModiPdfDocument, JsValue> {
-        let document = PdfDocument::from_owned_bytes(bytes.to_vec()).map_err(pdf_error)?;
+    pub fn open(bytes: Vec<u8>) -> Result<ModiPdfDocument, JsValue> {
+        let document = PdfDocument::from_owned_bytes(bytes).map_err(pdf_error)?;
         Ok(Self { inner: Some(document) })
     }
 
@@ -353,22 +353,38 @@ fn parse_paths(value: &JsValue) -> Result<Vec<Vec<PdfPoint>>, JsValue> {
     if !Array::is_array(value) {
         return Err(invalid_annotation("ink paths must be an array"));
     }
-    Array::from(value)
-        .iter()
-        .map(|path| {
-            if !Array::is_array(&path) {
-                return Err(invalid_annotation("each ink path must be an array"));
-            }
-            Array::from(&path).iter().map(|point| point_from_js(&point)).collect()
-        })
-        .collect()
+    let paths = Array::from(value);
+    if paths.length() > MAX_INK_POINTS as u32 {
+        return Err(invalid_annotation("ink point limit exceeded"));
+    }
+    let mut result = Vec::with_capacity(paths.length() as usize);
+    let mut point_count = 0usize;
+    for path in paths.iter() {
+        if !Array::is_array(&path) {
+            return Err(invalid_annotation("each ink path must be an array"));
+        }
+        let path = Array::from(&path);
+        if path.length() > MAX_INK_POINTS as u32 {
+            return Err(invalid_annotation("ink point limit exceeded"));
+        }
+        point_count = point_count.saturating_add(path.length() as usize);
+        if point_count > MAX_INK_POINTS {
+            return Err(invalid_annotation("ink point limit exceeded"));
+        }
+        result.push(path.iter().map(|point| point_from_js(&point)).collect::<Result<_, _>>()?);
+    }
+    Ok(result)
 }
 
 fn parse_quads(value: &JsValue) -> Result<Vec<PdfQuad>, JsValue> {
     if !Array::is_array(value) {
         return Err(invalid_annotation("highlight quads must be an array"));
     }
-    Array::from(value)
+    let quads = Array::from(value);
+    if quads.length() > MAX_HIGHLIGHT_QUADS as u32 {
+        return Err(invalid_annotation("highlight quad limit exceeded"));
+    }
+    quads
         .iter()
         .map(|quad| {
             let property = |key| {
