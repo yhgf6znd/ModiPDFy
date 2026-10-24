@@ -457,57 +457,59 @@ fn parse_signature_strokes(
     if !Array::is_array(value) {
         return Err(invalid_annotation("signature strokes must be an array"));
     }
-    Array::from(value)
-        .iter()
-        .map(|stroke| {
-            let points_value = Reflect::get(&stroke, &JsValue::from_str("points"))
-                .map_err(|_| invalid_annotation("signature stroke points are unreadable"))?;
-            if !Array::is_array(&points_value) {
-                return Err(invalid_annotation("signature stroke points must be an array"));
+    let strokes = Array::from(value);
+    if strokes.length() > MAX_INK_POINTS as u32 {
+        return Err(invalid_annotation("signature point limit exceeded"));
+    }
+    let mut point_count = 0usize;
+    let mut result = Vec::with_capacity(strokes.length() as usize);
+    for stroke in strokes.iter() {
+        let points_value = Reflect::get(&stroke, &JsValue::from_str("points"))
+            .map_err(|_| invalid_annotation("signature stroke points are unreadable"))?;
+        if !Array::is_array(&points_value) {
+            return Err(invalid_annotation("signature stroke points must be an array"));
+        }
+        let point_length = Array::from(&points_value).length() as usize;
+        if point_length < 2 {
+            return Err(invalid_annotation("signature strokes must contain at least two points"));
+        }
+        point_count = point_count.saturating_add(point_length);
+        if point_count > MAX_INK_POINTS {
+            return Err(invalid_annotation("signature point limit exceeded"));
+        }
+        let points = Array::from(&points_value)
+            .iter()
+            .map(|point| point_from_js(&point))
+            .collect::<Result<Vec<_>, _>>()?;
+        let color = if let Ok(value) = Reflect::get(&stroke, &JsValue::from_str("color")) {
+            PdfColor {
+                red: number_property(&value, "red")?,
+                green: number_property(&value, "green")?,
+                blue: number_property(&value, "blue")?,
             }
-            let points = Array::from(&points_value)
-                .iter()
-                .map(|point| point_from_js(&point))
-                .collect::<Result<Vec<_>, _>>()?;
-            if points.len() < 2 {
-                return Err(invalid_annotation(
-                    "signature strokes must contain at least two points",
-                ));
-            }
-            let color = if let Ok(value) = Reflect::get(&stroke, &JsValue::from_str("color")) {
-                PdfColor {
-                    red: number_property(&value, "red")?,
-                    green: number_property(&value, "green")?,
-                    blue: number_property(&value, "blue")?,
-                }
-            } else {
-                fallback.color
-            };
-            let stroke_width = match Reflect::get(&stroke, &JsValue::from_str("strokeWidth")) {
-                Ok(value) => value
-                    .as_f64()
-                    .filter(|value| value.is_finite())
-                    .ok_or_else(|| invalid_annotation("signature stroke width must be finite"))?,
-                Err(_) => fallback.stroke_width,
-            };
-            let opacity = match Reflect::get(&stroke, &JsValue::from_str("opacity")) {
-                Ok(value) => value
-                    .as_f64()
-                    .filter(|value| value.is_finite())
-                    .ok_or_else(|| invalid_annotation("signature stroke opacity must be finite"))?,
-                Err(_) => fallback.opacity,
-            };
-            Ok(SignatureStroke {
-                points,
-                style: AnnotationStyle {
-                    color,
-                    opacity,
-                    stroke_width,
-                    font_size: fallback.font_size,
-                },
-            })
-        })
-        .collect()
+        } else {
+            fallback.color
+        };
+        let stroke_width = match Reflect::get(&stroke, &JsValue::from_str("strokeWidth")) {
+            Ok(value) => value
+                .as_f64()
+                .filter(|value| value.is_finite())
+                .ok_or_else(|| invalid_annotation("signature stroke width must be finite"))?,
+            Err(_) => fallback.stroke_width,
+        };
+        let opacity = match Reflect::get(&stroke, &JsValue::from_str("opacity")) {
+            Ok(value) => value
+                .as_f64()
+                .filter(|value| value.is_finite())
+                .ok_or_else(|| invalid_annotation("signature stroke opacity must be finite"))?,
+            Err(_) => fallback.opacity,
+        };
+        result.push(SignatureStroke {
+            points,
+            style: AnnotationStyle { color, opacity, stroke_width, font_size: fallback.font_size },
+        });
+    }
+    Ok(result)
 }
 
 fn parse_quads(value: &JsValue) -> Result<Vec<PdfQuad>, JsValue> {

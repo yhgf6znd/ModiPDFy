@@ -130,6 +130,12 @@ assert.throws(
 );
 
 
+const oversizedSignature = { ...signatureAnnotation, editorId: "signature-wasm-oversized", content: { strokes: [{ ...signatureAnnotation.content.strokes[0], points: Array.from({ length: 100001 }, () => ({ x: 200, y: 320 })) }] } };
+assert.throws(
+  () => documentHandle.addSignatureAnnotation(oversizedSignature),
+  (error) => error instanceof WasmBridgeError && error.code === "invalid_annotation",
+);
+
 const saved = await exportPdfBytes({ documentHandle, annotations: documentHandle.listAnnotations(), reopen: openPdfDocument });
 assert(saved instanceof Uint8Array);
 assert(saved.byteLength > 0);
