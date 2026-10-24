@@ -673,29 +673,53 @@ fn annotation_js(annotation: &Annotation) -> Result<JsValue, JsValue> {
 }
 
 fn pdf_error(error: PdfError) -> JsValue {
-    let (code, recoverable) = match &error {
-        PdfError::EmptyInput => ("invalid_input", true),
-        PdfError::InputTooLarge { .. } => ("input_too_large", true),
-        PdfError::MalformedPdf { .. } | PdfError::ParserPanicked => ("malformed_pdf", false),
-        PdfError::PageIndexOutOfRange { .. } => ("invalid_page_index", true),
+    let (code, message, recoverable) = match &error {
+        PdfError::EmptyInput => ("invalid_input", "PDF input is empty.", true),
+        PdfError::InputTooLarge { .. } => {
+            ("input_too_large", "PDF input exceeds the supported size limit.", true)
+        }
+        PdfError::MalformedPdf { .. } | PdfError::ParserPanicked => (
+            "malformed_pdf",
+            "The PDF could not be parsed. It may be malformed or unsupported.",
+            false,
+        ),
+        PdfError::PageIndexOutOfRange { .. } => {
+            ("invalid_page_index", "The requested PDF page does not exist.", true)
+        }
         PdfError::MissingPageAttribute { .. }
         | PdfError::InvalidPageAttribute { .. }
-        | PdfError::InvalidPageTree { .. } => ("invalid_page_info", false),
-        PdfError::ObjectNotFound { .. } | PdfError::ObjectInspection { .. } => {
-            ("object_inspection_failed", false)
+        | PdfError::InvalidPageTree { .. } => {
+            ("invalid_page_info", "The PDF page structure is invalid.", false)
         }
-        PdfError::Serialization { .. } => ("serialization_failed", false),
+        PdfError::ObjectNotFound { .. } | PdfError::ObjectInspection { .. } => {
+            ("object_inspection_failed", "The requested PDF object could not be inspected.", false)
+        }
+        PdfError::Serialization { .. } => {
+            ("serialization_failed", "The PDF could not be serialized.", false)
+        }
         PdfError::InvalidAnnotationId { .. }
         | PdfError::InvalidAnnotationGeometry { .. }
         | PdfError::InvalidAnnotationStyle
         | PdfError::InvalidAnnotationContent { .. }
         | PdfError::DuplicateAnnotationId { .. }
-        | PdfError::AnnotationNotFound { .. } => ("invalid_annotation", true),
-        PdfError::AnnotationParse { .. } => ("annotation_parse_failed", false),
-        PdfError::SignedDocument { .. } => ("signed_document", false),
-        PdfError::EncryptedDocument { .. } => ("encrypted_document", false),
+        | PdfError::AnnotationNotFound { .. } => {
+            ("invalid_annotation", "The annotation data is invalid or could not be applied.", true)
+        }
+        PdfError::AnnotationParse { .. } => {
+            ("annotation_parse_failed", "An existing PDF annotation could not be read.", false)
+        }
+        PdfError::SignedDocument { .. } => (
+            "signed_document",
+            "This PDF contains a cryptographic signature and cannot be edited without invalidating it.",
+            false,
+        ),
+        PdfError::EncryptedDocument { .. } => (
+            "encrypted_document",
+            "Encrypted PDF editing is unsupported without a password workflow.",
+            false,
+        ),
     };
-    structured_error(code, &error.to_string(), recoverable)
+    structured_error(code, message, recoverable)
 }
 
 fn structured_error(code: &str, message: &str, recoverable: bool) -> JsValue {

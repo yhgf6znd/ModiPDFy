@@ -186,7 +186,7 @@ assert.throws(
 
 await assert.rejects(
   () => openPdfDocument(new Uint8Array([1, 2, 3])),
-  (error) => error instanceof WasmBridgeError && error.code === "malformed_pdf",
+  (error) => error instanceof WasmBridgeError && error.code === "malformed_pdf" && error.message === "The PDF could not be parsed. It may be malformed or unsupported.",
 );
 
 await assert.rejects(
