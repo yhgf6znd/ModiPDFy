@@ -108,7 +108,7 @@ export class SignaturePad {
     if (!event.isPrimary || event.button !== 0) return;
     event.preventDefault();
     this.active = { pointerId: event.pointerId, color: colorFromHex(this.colorInput.value), strokeWidth: Math.max(0.01, Number(this.widthInput.value) || 3), points: [this.#point(event)] };
-    this.canvas.setPointerCapture(event.pointerId);
+    try { this.canvas.setPointerCapture(event.pointerId); } catch { /* synthetic test events may not be capturable */ }
     this.redraw();
   }
 
