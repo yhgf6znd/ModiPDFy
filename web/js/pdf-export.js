@@ -139,10 +139,13 @@ export function downloadPdf(bytes, filename, browser = globalThis) {
   const link = browser.document.createElement("a");
   link.href = url;
   link.download = filename;
+  browser.document.body.append(link);
   try {
     link.click();
   } finally {
-    link.remove();
-    browser.setTimeout(() => browser.URL.revokeObjectURL(url), 0);
+    browser.setTimeout(() => {
+      link.remove();
+      browser.URL.revokeObjectURL(url);
+    }, 1000);
   }
 }

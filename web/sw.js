@@ -1,4 +1,4 @@
-const CACHE_NAME = "modipdfy-shell-v4";
+const CACHE_NAME = "modipdfy-shell-v7";
 const ASSETS = [
   "./",
   "./index.html",
