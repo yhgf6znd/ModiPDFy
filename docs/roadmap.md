@@ -26,16 +26,18 @@ Exit evidence: a cached app opens and renders single/multipage fixtures with the
 
 ## Phase 2 — annotation foundation
 
-Status: in progress — native annotation engine and initial browser tools delivered.
+Status: complete — native annotation engine and initial browser tools delivered and reviewed.
 
 - Core annotation model, stable IDs, validation, and ID-based removal/listing for Text/FreeText, Ink, and Highlight.
 - Object-preserving PDF annotation export infrastructure using `lopdf`, including native appearance streams and opacity states.
 - SVG/HTML overlay rendering, canonical PDF-to-viewport transforms, and native pointer-event interaction tests.
 - Export/reopen fixtures for unrotated and rotated/cropped pages.
 
-Exit evidence in progress: native tests add, save, reopen, and inspect all three annotation types, preserve page content and existing annotations, and block signed-document mutation. Browser tests cover pen, text, highlight, selection/move, deletion, Rust persistence, and zoom stability. Operation rollback/undo-redo depth, handwritten signatures, and independent-reader coverage remain open.
+Exit evidence: native tests add, save, reopen, and inspect all three annotation types, preserve page content and existing annotations, and block signed-document mutation. Browser tests cover the WASM bridge, PDF.js viewer lifecycle, pen, text, top-edge geometry, keyboard activation, highlight selection, selection/move, deletion, Rust persistence, and zoom stability. Queue rollback and bounded annotation input are covered. Handwritten signatures, independent-reader coverage, offline reload, and fuzzing remain open.
 
 ## Phase 3 — initial annotation tools
+
+Status: next milestone.
 
 Complete and harden the initial release tools:
 
@@ -77,4 +79,5 @@ Each future feature must preserve the same browser-only privacy boundary and mus
 6. **Signature representation.** A handwritten visual signature is not a cryptographic digital signature. The UI and exported metadata must avoid implying legal authenticity until a separate digital-signature design exists.
 7. **PDF.js and Rust/WASM packaging.** Worker paths, cross-origin isolation assumptions, asset pinning, CMap/font precaching, and GitHub Pages subpaths need deployment tests.
 8. **Browser API variability.** File System Access API and persistent storage are not universal. Download via `Blob` must remain the portable baseline.
-9. **Undo/redo and export state.** The design must keep operation history useful without retaining unbounded full-document copies or confusing PDF object identity with session annotation IDs.
+9. **Undo/redo and export state.** The browser history is capped and export waits for queued commands, but repeated add/remove edits leave unreachable appearance-support objects in the lopdf object table until a future compaction policy is designed. The design must not retain unbounded full-document copies or confuse PDF object identity with session annotation IDs.
+10. **Independent-reader and offline evidence.** Semantic reopenability is covered by lopdf and PDF.js; compatibility with independent readers and offline reload across GitHub Pages deployments still needs fixture and deployment testing.
