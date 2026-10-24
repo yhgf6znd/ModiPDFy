@@ -51,6 +51,7 @@ export class PdfViewer {
     this.pageCache = new Map();
     this.pageStates = new Map();
     this.renderGeneration = 0;
+    this.renderPromises = new Map();
     this.renderTasks = new Map();
     this.currentPageIndex = 0;
     this.scale = DEFAULT_SCALE;
@@ -165,7 +166,9 @@ export class PdfViewer {
       task.render?.cancel();
       task.text?.cancel?.();
     }
+    await Promise.allSettled([...this.renderPromises.values()]);
     this.renderTasks.clear();
+    this.renderPromises.clear();
     this.intersectionObserver.disconnect();
     const document = this.pdfDocument;
     this.pdfDocument = null;
@@ -309,6 +312,21 @@ export class PdfViewer {
     if (!this.pdfDocument || generation !== this.renderGeneration || !this.pageStates.has(index)) {
       return;
     }
+    const existing = this.renderPromises.get(index);
+    if (existing) return existing;
+    const promise = this.#renderPageInternal(index, generation);
+    this.renderPromises.set(index, promise);
+    try {
+      return await promise;
+    } finally {
+      if (this.renderPromises.get(index) === promise) this.renderPromises.delete(index);
+    }
+  }
+
+  async #renderPageInternal(index, generation) {
+    if (!this.pdfDocument || generation !== this.renderGeneration || !this.pageStates.has(index)) {
+      return;
+    }
     const state = this.pageStates.get(index);
     const page = await this.#getPage(index);
     if (generation !== this.renderGeneration || !this.pdfDocument) {
@@ -382,6 +400,7 @@ export class PdfViewer {
       task.render?.cancel();
       task.text?.cancel?.();
     }
+    await Promise.allSettled([...this.renderPromises.values()]);
     this.renderTasks.clear();
     for (const state of this.pageStates.values()) {
       state.rendered = false;
