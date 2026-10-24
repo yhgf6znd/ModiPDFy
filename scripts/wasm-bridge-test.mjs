@@ -136,6 +136,18 @@ assert.throws(
   (error) => error instanceof WasmBridgeError && error.code === "invalid_annotation",
 );
 
+const malformedHighlight = structuredClone(documentHandle.listAnnotations());
+malformedHighlight.find((annotation) => annotation.annotationType === "Highlight").content.quads = [{}];
+await assert.rejects(
+  () => exportPdfBytes({ documentHandle, annotations: malformedHighlight, reopen: openPdfDocument }),
+  (error) => error instanceof WasmBridgeError && error.code === "invalid_export_state",
+);
+const malformedSignature = structuredClone(documentHandle.listAnnotations());
+malformedSignature.find((annotation) => annotation.annotationType === "Signature").content.strokes = [null];
+await assert.rejects(
+  () => exportPdfBytes({ documentHandle, annotations: malformedSignature, reopen: openPdfDocument }),
+  (error) => error instanceof WasmBridgeError && error.code === "invalid_export_state",
+);
 const saved = await exportPdfBytes({ documentHandle, annotations: documentHandle.listAnnotations(), reopen: openPdfDocument });
 assert(saved instanceof Uint8Array);
 assert(saved.byteLength > 0);

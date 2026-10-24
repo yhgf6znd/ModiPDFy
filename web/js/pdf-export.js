@@ -3,6 +3,7 @@ import { WasmBridgeError } from "./wasm-bridge.js";
 const EPSILON = 1e-7;
 const MAX_TEXT_BYTES = 64 * 1024;
 const MAX_STROKE_POINTS = 100_000;
+const HIGHLIGHT_POINT_KEYS = ["topLeft", "topRight", "bottomLeft", "bottomRight"];
 
 function fail(message) {
   throw new WasmBridgeError("invalid_export_state", message, true);
@@ -74,13 +75,22 @@ function validateAnnotation(annotation, pageInfo) {
   } else if (annotation.annotationType === "Ink") {
     validatePaths(annotation.content?.paths, annotation.bounds, pageInfo, annotation.editorId);
   } else if (annotation.annotationType === "Signature") {
-    const paths = annotation.content?.strokes?.map((stroke) => stroke.points);
+    const strokes = annotation.content?.strokes;
+    if (!Array.isArray(strokes) || strokes.length === 0) fail(`${annotation.editorId} must contain strokes.`);
+    const paths = strokes.map((stroke, index) => {
+      if (!stroke || typeof stroke !== "object") fail(`${annotation.editorId} stroke ${index} is invalid.`);
+      return stroke.points;
+    });
     validatePaths(paths, annotation.bounds, pageInfo, annotation.editorId);
-    annotation.content.strokes.forEach((stroke, index) => validateStyle({ ...annotation.style, color: stroke.color, opacity: stroke.opacity, strokeWidth: stroke.strokeWidth }, `${annotation.editorId} stroke ${index}`));
+    strokes.forEach((stroke, index) => validateStyle({ ...annotation.style, color: stroke.color, opacity: stroke.opacity, strokeWidth: stroke.strokeWidth }, `${annotation.editorId} stroke ${index}`));
   } else if (annotation.annotationType === "Highlight") {
-    if (!Array.isArray(annotation.content?.quads) || annotation.content.quads.length === 0) fail(`${annotation.editorId} highlight geometry is empty.`);
-    for (const [index, quad] of annotation.content.quads.entries()) {
-      for (const [name, point] of Object.entries(quad)) validatePoint(point, annotation.bounds, pageInfo, `${annotation.editorId} quad ${index} ${name}`);
+    const quads = annotation.content?.quads;
+    if (!Array.isArray(quads) || quads.length === 0) fail(`${annotation.editorId} highlight geometry is empty.`);
+    for (const [index, quad] of quads.entries()) {
+      if (!quad || typeof quad !== "object" || Object.keys(quad).length !== HIGHLIGHT_POINT_KEYS.length || HIGHLIGHT_POINT_KEYS.some((key) => !(key in quad))) {
+        fail(`${annotation.editorId} quad ${index} is invalid.`);
+      }
+      for (const name of HIGHLIGHT_POINT_KEYS) validatePoint(quad[name], annotation.bounds, pageInfo, `${annotation.editorId} quad ${index} ${name}`);
     }
   } else {
     fail(`${annotation.editorId} uses an unsupported annotation type.`);
