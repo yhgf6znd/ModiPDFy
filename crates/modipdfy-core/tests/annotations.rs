@@ -50,6 +50,45 @@ fn annotation_fixture(include_signature: bool) -> Vec<u8> {
     bytes
 }
 
+fn shared_annotation_fixture() -> Vec<u8> {
+    let mut document = Document::with_version("1.7");
+    let pages_id = document.new_object_id();
+    let annotation_id = document.add_object(dictionary! {
+        "Type" => "Annot",
+        "Subtype" => "FreeText",
+        "Rect" => vec![30.into(), 40.into(), 45.into(), 55.into()],
+        "NM" => Object::string_literal("shared-note"),
+        "Contents" => Object::string_literal("shared annotation"),
+    });
+    let annots_id = document.add_object(vec![annotation_id.into()]);
+    let page_one = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 612.into(), 792.into()],
+        "Annots" => annots_id,
+    });
+    let page_two = document.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => pages_id,
+        "MediaBox" => vec![0.into(), 0.into(), 612.into(), 792.into()],
+        "Annots" => annots_id,
+    });
+    document.objects.insert(
+        pages_id,
+        dictionary! {
+            "Type" => "Pages",
+            "Kids" => vec![page_one.into(), page_two.into()],
+            "Count" => 2,
+        }
+        .into(),
+    );
+    let catalog_id = document.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
+    document.trailer.set("Root", catalog_id);
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes).expect("shared fixture should serialize");
+    bytes
+}
+
 fn encrypted_fixture() -> Vec<u8> {
     let mut document = Document::load_mem(&annotation_fixture(false)).expect("source loads");
     let id = vec![0x42u8; 16];
@@ -248,6 +287,38 @@ fn removes_only_the_requested_annotation() {
     assert_eq!(annotations.len(), 1);
     assert_eq!(annotations[0].editor_id.as_str(), "ink-1");
     assert!(matches!(document.remove_annotation(&id), Err(PdfError::AnnotationNotFound { .. })));
+}
+
+#[test]
+fn removing_shared_annotations_uses_copy_on_write() {
+    let source = shared_annotation_fixture();
+    let mut document = PdfDocument::from_bytes(&source).expect("shared fixture loads");
+    let id = AnnotationId::new("shared-note").expect("valid id");
+
+    document.remove_annotation(&id).expect("shared annotation removes from first page");
+    let saved = document.save_to_bytes().expect("shared fixture saves");
+    let reopened = Document::load_mem(&saved).expect("shared fixture reopens");
+    let pages = reopened.get_pages();
+    assert_eq!(pages.len(), 2);
+
+    let first_page = reopened.get_dictionary(pages[&1]).expect("first page");
+    let first_annots = first_page.get(b"Annots").expect("first page annotations");
+    assert!(matches!(first_annots, Object::Array(entries) if entries.is_empty()));
+
+    let second_page = reopened.get_dictionary(pages[&2]).expect("second page");
+    let shared_annots = second_page
+        .get(b"Annots")
+        .expect("second page annotations")
+        .as_reference()
+        .expect("second page retains shared annotation array");
+    let entries = reopened
+        .get_object(shared_annots)
+        .expect("shared annotation array")
+        .as_array()
+        .expect("shared annotation entries");
+    assert_eq!(entries.len(), 1);
+    let annotation_id = entries[0].as_reference().expect("annotation object reference");
+    assert!(reopened.get_dictionary(annotation_id).is_ok(), "shared annotation object was deleted");
 }
 
 #[test]

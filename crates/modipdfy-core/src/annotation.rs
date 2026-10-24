@@ -1255,13 +1255,25 @@ pub(crate) fn remove_annotation_entry(
         }
     }
     let Some(index) = match_index else { return Ok((false, None)) };
+    let shared_annots = annots_id.is_some_and(|id| reference_count(document, id) > 1);
+    let removable_annotation =
+        indirect_annotation.filter(|id| !shared_annots && reference_count(document, *id) == 1);
     if let Some(annots_id) = annots_id {
-        document
-            .get_object_mut(annots_id)
-            .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?
-            .as_array_mut()
-            .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?
-            .remove(index);
+        if shared_annots {
+            let mut remaining = entries;
+            remaining.remove(index);
+            document
+                .get_dictionary_mut(page_id)
+                .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?
+                .set("Annots", remaining);
+        } else {
+            document
+                .get_object_mut(annots_id)
+                .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?
+                .as_array_mut()
+                .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?
+                .remove(index);
+        }
     } else {
         document
             .get_dictionary_mut(page_id)
@@ -1272,5 +1284,28 @@ pub(crate) fn remove_annotation_entry(
             .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?
             .remove(index);
     }
-    Ok((true, indirect_annotation))
+    Ok((true, removable_annotation))
+}
+
+fn reference_count(document: &Document, target: ObjectId) -> usize {
+    let mut stack = document.objects.values().collect::<Vec<_>>();
+    stack.extend(document.trailer.iter().map(|(_, value)| value));
+    let mut count = 0usize;
+    while let Some(object) = stack.pop() {
+        match object {
+            Object::Reference(id) if *id == target => {
+                count = count.saturating_add(1);
+                if count > 1 {
+                    return count;
+                }
+            }
+            Object::Array(values) => stack.extend(values),
+            Object::Dictionary(dictionary) => {
+                stack.extend(dictionary.iter().map(|(_, value)| value))
+            }
+            Object::Stream(stream) => stack.extend(stream.dict.iter().map(|(_, value)| value)),
+            _ => {}
+        }
+    }
+    count
 }
