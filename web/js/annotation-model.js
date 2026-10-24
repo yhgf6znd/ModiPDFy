@@ -97,25 +97,19 @@ export class AnnotationStore {
 
   commitAdd(annotation) {
     const command = { type: "add", annotation: cloneAnnotation(annotation) };
-    this.#applyCommand(command);
-    this.#record(command);
-    this.onCommand(command);
+    this.#dispatch(command);
     return command;
   }
 
   commitUpdate(before, after) {
     const command = { type: "update", before: cloneAnnotation(before), after: cloneAnnotation(after) };
-    this.#applyCommand(command);
-    this.#record(command);
-    this.onCommand(command);
+    this.#dispatch(command);
     return command;
   }
 
   commitRemove(annotation) {
     const command = { type: "remove", annotation: cloneAnnotation(annotation) };
-    this.#applyCommand(command);
-    this.#record(command);
-    this.onCommand(command);
+    this.#dispatch(command);
     return command;
   }
 
@@ -137,14 +131,34 @@ export class AnnotationStore {
       return null;
     }
     this.#applyCommand(command);
-    this.history.push(command);
     this.#emit();
     return command;
+  }
+
+  completeRedo(command) {
+    this.history.push(command);
+    this.#emit();
+  }
+
+  restoreRedo(command) {
+    this.redoStack.push(command);
+    this.#emit();
   }
 
   restoreCommand(command) {
     this.#applyCommand(command);
     this.#emit();
+  }
+
+  #dispatch(command) {
+    this.#applyCommand(command);
+    this.#emit();
+    const persistence = this.onCommand(command);
+    if (persistence && typeof persistence.then === "function") {
+      void persistence.then(() => this.#record(command)).catch(() => {});
+    } else {
+      this.#record(command);
+    }
   }
 
   #record(command) {

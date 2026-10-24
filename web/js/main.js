@@ -99,7 +99,7 @@ const store = new AnnotationStore({
     updateDocumentControls();
   },
   onCommand(command) {
-    void interaction?.persistCommand(command);
+    return interaction?.persistCommand(command);
   },
 });
 

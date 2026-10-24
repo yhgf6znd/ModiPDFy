@@ -156,14 +156,19 @@ export class AnnotationInteraction {
     const result = this.store.undo();
     if (!result) return;
     this.setSelected(result.inverse.annotation?.editorId ?? result.inverse.after?.editorId ?? null);
-    await this.#persistCommand(result.inverse, result.command);
+    try { await this.#persistCommand(result.inverse, result.command); } catch { /* status and state restoration are handled by the queue */ }
   }
 
   async redo() {
     const command = this.store.redo();
     if (!command) return;
     this.setSelected(command.annotation?.editorId ?? command.after?.editorId ?? null);
-    await this.#persistCommand(command, invertCommandForRestore(command));
+    try {
+      await this.#persistCommand(command, invertCommandForRestore(command));
+      this.store.completeRedo(command);
+    } catch {
+      this.store.restoreRedo(command);
+    }
   }
 
   editSelected() {
@@ -274,15 +279,15 @@ export class AnnotationInteraction {
       if (gesture.points.length >= 2) {
         const padding = gesture.style.strokeWidth / 2 + 1;
         const bounds = pointBounds(gesture.points, padding);
-        const annotation = {
+        const annotation = clampToPage({
           editorId: createEditorId(),
           pageIndex: gesture.pageIndex,
           annotationType: AnnotationType.INK,
           position: gesture.points[0],
-          bounds: clampBounds(bounds, this.getPageInfo(gesture.pageIndex)),
+          bounds,
           style: gesture.style,
           content: { paths: [gesture.points] },
-        };
+        }, this.getPageInfo(gesture.pageIndex));
         this.store.commitAdd(annotation);
         this.setSelected(annotation.editorId);
       }
@@ -299,6 +304,9 @@ export class AnnotationInteraction {
     if (!this.gesture || event.pointerId !== this.gesture.pointerId) return;
     if (this.gesture.type === "draw") this.overlay.clearTransient();
     if (this.gesture.type !== "draw") this.store.clearPreview(this.gesture.original.editorId);
+    if (this.pagesElement.hasPointerCapture?.(event.pointerId)) {
+      try { this.pagesElement.releasePointerCapture(event.pointerId); } catch { /* synthetic test events may not be capturable */ }
+    }
     this.gesture = null;
   }
 
@@ -424,15 +432,15 @@ export class AnnotationInteraction {
     }
     for (const [pageIndex, quads] of grouped) {
       const allPoints = quads.flatMap((quad) => Object.values(quad));
-      const annotation = {
+      const annotation = clampToPage({
         editorId: createEditorId(),
         pageIndex,
         annotationType: AnnotationType.HIGHLIGHT,
         position: allPoints[0],
-        bounds: clampBounds(pointBounds(allPoints), this.getPageInfo(pageIndex)),
+        bounds: pointBounds(allPoints),
         style: this.controls.highlightStyle(),
         content: { quads },
-      };
+      }, this.getPageInfo(pageIndex));
       this.store.commitAdd(annotation);
       this.setSelected(annotation.editorId);
     }
@@ -480,7 +488,7 @@ export class AnnotationInteraction {
   }
 
   #persistCommand(command, restoreCommand = null) {
-    this.commandQueue = this.commandQueue.then(async () => {
+    const operation = this.commandQueue.then(async () => {
       if (!this.documentHandle) throw new Error("No Rust document is open.");
       if (command.type === "add") {
         this.#addToRust(command.annotation);
@@ -503,7 +511,8 @@ export class AnnotationInteraction {
           throw error;
         }
       }
-    }).catch((error) => {
+    });
+    this.commandQueue = operation.catch((error) => {
       if (restoreCommand) {
         this.store.restoreCommand(restoreCommand);
         if (restoreCommand.type === "add") {
@@ -516,7 +525,7 @@ export class AnnotationInteraction {
       }
       this.onStatus(`Annotation operation failed: ${error instanceof Error ? error.message : String(error)}`, "error");
     });
-    return this.commandQueue;
+    return operation;
   }
 
   persistCommand(command) {

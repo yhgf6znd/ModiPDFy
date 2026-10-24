@@ -204,7 +204,7 @@ Expected user mistakes are recoverable and actionable. A malformed or unsupporte
 
 No panic may cross the WASM boundary. Native code may use assertions for impossible programmer invariants, but not for input-controlled values. Logging is opt-in developer diagnostics and must not include document text, file names, or raw PDF bytes by default.
 
-The browser command queue reports failed Rust operations through the status region and restores the inverse local command when possible. Preview state is discarded on pointer cancellation or Escape. This is a first release policy; a later transactional batch API should make multi-step updates explicitly atomic at the Rust boundary.
+The browser command queue reports failed Rust operations through the status region and restores the inverse local command when possible. A command enters undo history only after its Rust operation resolves successfully; pending pointer previews and failed operations are not history entries. Preview state is discarded on pointer cancellation or Escape. This is a first release policy; a later transactional batch API should make multi-step updates explicitly atomic at the Rust boundary.
 
 ## 9. Testing strategy
 
