@@ -54,6 +54,7 @@ export class PdfViewer {
     this.renderPromises = new Map();
     this.renderTasks = new Map();
     this.currentPageIndex = 0;
+    this.programmaticNavigation = 0;
     this.scale = DEFAULT_SCALE;
     this.scaleMode = "manual";
     this.documentName = "";
@@ -176,6 +177,7 @@ export class PdfViewer {
     this.pageStates.clear();
     this.pagesElement.replaceChildren();
     this.currentPageIndex = 0;
+    this.programmaticNavigation = 0;
     this.onPageCount(0);
     this.onPageChange(0);
     if (document) {
@@ -219,10 +221,16 @@ export class PdfViewer {
     if (!state) {
       return;
     }
+    const navigation = ++this.programmaticNavigation;
     this.currentPageIndex = index;
     this.onPageChange(pageNumber);
-    state.shell.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
-    await this.#renderPage(index, this.renderGeneration);
+    try {
+      state.shell.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+      await this.#renderPage(index, this.renderGeneration);
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    } finally {
+      if (this.programmaticNavigation === navigation) this.programmaticNavigation = 0;
+    }
   }
 
   #createPageShells() {
@@ -267,7 +275,7 @@ export class PdfViewer {
         void this.#renderPage(index, this.renderGeneration);
       }
     }
-    if (best) {
+    if (best && !this.programmaticNavigation) {
       const index = Number(best.target.dataset.pageIndex);
       if (index !== this.currentPageIndex) {
         this.currentPageIndex = index;
@@ -277,6 +285,7 @@ export class PdfViewer {
   }
 
   #scheduleCurrentPageUpdate() {
+    if (this.programmaticNavigation) return;
     if (this.currentPageFrame) {
       return;
     }
