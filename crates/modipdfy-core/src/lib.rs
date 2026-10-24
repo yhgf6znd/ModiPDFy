@@ -22,8 +22,8 @@ pub use annotation::{
     TextAnnotation,
 };
 pub use document::{
-    DEFAULT_MAX_DECOMPRESSED_STREAM_BYTES, DEFAULT_MAX_INPUT_BYTES, DocumentLoadOptions,
-    PdfDocument,
+    DEFAULT_MAX_DECOMPRESSED_STREAM_BYTES, DEFAULT_MAX_INPUT_BYTES, DEFAULT_MAX_OBJECT_COUNT,
+    DEFAULT_MAX_OUTPUT_BYTES, DEFAULT_MAX_PAGE_COUNT, DocumentLoadOptions, PdfDocument,
 };
 pub use error::{PdfError, PdfResult};
 pub use inspect::{PdfObjectId, PdfObjectInfo, PdfObjectKind};

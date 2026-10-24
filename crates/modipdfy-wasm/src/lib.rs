@@ -680,6 +680,11 @@ fn pdf_error(error: PdfError) -> JsValue {
         PdfError::InputTooLarge { .. } => {
             ("input_too_large", "PDF input exceeds the supported size limit.", true)
         }
+        PdfError::PageCountTooLarge { .. }
+        | PdfError::ObjectCountTooLarge { .. }
+        | PdfError::OutputTooLarge { .. } => {
+            ("resource_limit", "The PDF exceeds a supported resource limit.", false)
+        }
         PdfError::MalformedPdf { .. } | PdfError::ParserPanicked => (
             "malformed_pdf",
             "The PDF could not be parsed. It may be malformed or unsupported.",

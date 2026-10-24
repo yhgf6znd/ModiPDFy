@@ -1,5 +1,5 @@
 use lopdf::{Document, Object, dictionary};
-use modipdfy_core::{PdfDocument, PdfError, PdfObjectKind, PdfWarning};
+use modipdfy_core::{DocumentLoadOptions, PdfDocument, PdfError, PdfObjectKind, PdfWarning};
 
 fn fixture(page_sizes: &[(i64, i64)], title: Option<&str>) -> Vec<u8> {
     fixture_with_signature(page_sizes, title, false)
@@ -90,6 +90,40 @@ fn rejects_invalid_pdf_without_panicking() {
 #[test]
 fn rejects_empty_input() {
     assert!(matches!(PdfDocument::from_bytes(&[]), Err(PdfError::EmptyInput)));
+}
+
+#[test]
+fn enforces_page_count_limit() {
+    let result = PdfDocument::from_bytes_with_options(
+        &fixture(&[(612, 792)], None),
+        DocumentLoadOptions { max_page_count: 0, ..DocumentLoadOptions::default() },
+    );
+
+    assert!(matches!(result, Err(PdfError::PageCountTooLarge { actual: 1, maximum: 0 })));
+}
+
+#[test]
+fn enforces_object_count_limit() {
+    let result = PdfDocument::from_bytes_with_options(
+        &fixture(&[(612, 792)], None),
+        DocumentLoadOptions { max_object_count: 0, ..DocumentLoadOptions::default() },
+    );
+
+    assert!(
+        matches!(result, Err(PdfError::ObjectCountTooLarge { actual, maximum: 0 }) if actual > 0)
+    );
+}
+
+#[test]
+fn enforces_output_size_limit_after_serialization() {
+    let mut document = PdfDocument::from_bytes_with_options(
+        &fixture(&[(612, 792)], None),
+        DocumentLoadOptions { max_output_bytes: 1, ..DocumentLoadOptions::default() },
+    )
+    .expect("fixture loads");
+    let result = document.save_to_bytes();
+
+    assert!(matches!(result, Err(PdfError::OutputTooLarge { actual, maximum: 1 }) if actual > 1));
 }
 
 #[test]

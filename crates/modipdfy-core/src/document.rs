@@ -12,6 +12,12 @@ use crate::{
 pub const DEFAULT_MAX_INPUT_BYTES: usize = 128 * 1024 * 1024;
 /// Default maximum decompressed size for an individual PDF stream.
 pub const DEFAULT_MAX_DECOMPRESSED_STREAM_BYTES: usize = 256 * 1024 * 1024;
+/// Default maximum number of pages accepted from one input.
+pub const DEFAULT_MAX_PAGE_COUNT: usize = 10_000;
+/// Default maximum number of parsed indirect objects accepted from one input.
+pub const DEFAULT_MAX_OBJECT_COUNT: usize = 1_000_000;
+/// Default maximum serialized output size.
+pub const DEFAULT_MAX_OUTPUT_BYTES: usize = 256 * 1024 * 1024;
 
 /// Defensive limits for loading an untrusted in-memory PDF.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,6 +26,12 @@ pub struct DocumentLoadOptions {
     pub max_input_bytes: usize,
     /// Maximum decompressed size of one lopdf stream.
     pub max_decompressed_stream_bytes: usize,
+    /// Maximum number of pages accepted from one input.
+    pub max_page_count: usize,
+    /// Maximum number of parsed indirect objects accepted from one input.
+    pub max_object_count: usize,
+    /// Maximum serialized output size.
+    pub max_output_bytes: usize,
     /// Whether lopdf should reject leniently recoverable PDF syntax.
     pub strict: bool,
 }
@@ -29,6 +41,9 @@ impl Default for DocumentLoadOptions {
         Self {
             max_input_bytes: DEFAULT_MAX_INPUT_BYTES,
             max_decompressed_stream_bytes: DEFAULT_MAX_DECOMPRESSED_STREAM_BYTES,
+            max_page_count: DEFAULT_MAX_PAGE_COUNT,
+            max_object_count: DEFAULT_MAX_OBJECT_COUNT,
+            max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES,
             strict: false,
         }
     }
@@ -43,6 +58,7 @@ impl Default for DocumentLoadOptions {
 pub struct PdfDocument {
     document: Document,
     source_bytes: Vec<u8>,
+    limits: DocumentLoadOptions,
     dirty: bool,
 }
 
@@ -63,7 +79,7 @@ impl PdfDocument {
     /// Load a PDF from bytes using explicit parser and resource limits.
     pub fn from_bytes_with_options(bytes: &[u8], options: DocumentLoadOptions) -> PdfResult<Self> {
         let document = Self::parse_bytes(bytes, options)?;
-        Ok(Self { document, source_bytes: bytes.to_vec(), dirty: false })
+        Ok(Self { document, source_bytes: bytes.to_vec(), limits: options, dirty: false })
     }
 
     /// Take ownership of PDF bytes and load them with explicit parser and resource limits.
@@ -72,7 +88,7 @@ impl PdfDocument {
         options: DocumentLoadOptions,
     ) -> PdfResult<Self> {
         let document = Self::parse_bytes(&bytes, options)?;
-        Ok(Self { document, source_bytes: bytes, dirty: false })
+        Ok(Self { document, source_bytes: bytes, limits: options, dirty: false })
     }
 
     fn parse_bytes(bytes: &[u8], options: DocumentLoadOptions) -> PdfResult<Document> {
@@ -95,6 +111,21 @@ impl PdfDocument {
             catch_unwind(AssertUnwindSafe(|| Document::load_mem_with_options(bytes, load_options)))
                 .map_err(|_| PdfError::ParserPanicked)?
                 .map_err(|error| PdfError::MalformedPdf { message: error.to_string() })?;
+
+        let page_count = parsed.get_pages().len();
+        if page_count > options.max_page_count {
+            return Err(PdfError::PageCountTooLarge {
+                actual: page_count,
+                maximum: options.max_page_count,
+            });
+        }
+        let object_count = parsed.objects.len();
+        if object_count > options.max_object_count {
+            return Err(PdfError::ObjectCountTooLarge {
+                actual: object_count,
+                maximum: options.max_object_count,
+            });
+        }
 
         Ok(parsed)
     }
@@ -141,10 +172,22 @@ impl PdfDocument {
     /// source buffer is released after a successful rewrite.
     pub fn save_to_bytes(&mut self) -> PdfResult<Vec<u8>> {
         if !self.dirty {
+            if self.source_bytes.len() > self.limits.max_output_bytes {
+                return Err(PdfError::OutputTooLarge {
+                    actual: self.source_bytes.len(),
+                    maximum: self.limits.max_output_bytes,
+                });
+            }
             return Ok(self.source_bytes.clone());
         }
         self.ensure_editable("rewrite")?;
         let bytes = serialization::serialize(&mut self.document)?;
+        if bytes.len() > self.limits.max_output_bytes {
+            return Err(PdfError::OutputTooLarge {
+                actual: bytes.len(),
+                maximum: self.limits.max_output_bytes,
+            });
+        }
         self.source_bytes = Vec::new();
         Ok(bytes)
     }

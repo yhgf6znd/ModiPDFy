@@ -12,6 +12,10 @@ pub enum PdfError {
     EmptyInput,
     /// The input exceeded the configured in-memory input limit.
     InputTooLarge { actual: usize, maximum: usize },
+    /// The parsed document contains more pages than the configured limit.
+    PageCountTooLarge { actual: usize, maximum: usize },
+    /// The parsed document contains more indirect objects than the configured limit.
+    ObjectCountTooLarge { actual: usize, maximum: usize },
     /// The PDF parser rejected the input.
     MalformedPdf { message: String },
     /// The parser panicked while processing untrusted input.
@@ -30,6 +34,8 @@ pub enum PdfError {
     ObjectInspection { object_id: PdfObjectId, message: String },
     /// The document could not be serialized.
     Serialization { message: String },
+    /// The serialized output exceeds the configured limit.
+    OutputTooLarge { actual: usize, maximum: usize },
     /// An editor identifier is missing, malformed, or too long.
     InvalidAnnotationId { value: String },
     /// Annotation geometry contains invalid values or lies outside the page.
@@ -57,6 +63,12 @@ impl Display for PdfError {
             Self::InputTooLarge { actual, maximum } => {
                 write!(formatter, "PDF input is {actual} bytes; maximum is {maximum} bytes")
             }
+            Self::PageCountTooLarge { actual, maximum } => {
+                write!(formatter, "PDF contains {actual} pages; maximum is {maximum} pages")
+            }
+            Self::ObjectCountTooLarge { actual, maximum } => {
+                write!(formatter, "PDF contains {actual} objects; maximum is {maximum} objects")
+            }
             Self::MalformedPdf { message } => write!(formatter, "malformed PDF: {message}"),
             Self::ParserPanicked => formatter.write_str("PDF parser failed while reading input"),
             Self::PageIndexOutOfRange { index, page_count } => {
@@ -81,6 +93,9 @@ impl Display for PdfError {
             ),
             Self::Serialization { message } => {
                 write!(formatter, "could not serialize PDF: {message}")
+            }
+            Self::OutputTooLarge { actual, maximum } => {
+                write!(formatter, "serialized PDF is {actual} bytes; maximum is {maximum} bytes")
             }
             Self::InvalidAnnotationId { value } => {
                 write!(formatter, "invalid annotation editor id: {value:?}")

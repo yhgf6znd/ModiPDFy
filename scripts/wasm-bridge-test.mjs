@@ -18,7 +18,7 @@ const wasmModule = await WebAssembly.compile(wasmBytes);
 await initializeWasm({ module_or_path: wasmModule });
 assert.equal(translateWasmError(new RangeError("memory access out of bounds")).code, "memory_exhausted");
 const serviceWorkerSource = await readFile(new URL("../web/sw.js", import.meta.url), "utf8");
-assert(serviceWorkerSource.includes("modipdfy-shell-v7"), "service-worker cache version was not updated");
+assert(serviceWorkerSource.includes("modipdfy-shell-v8"), "service-worker cache version was not updated");
 for (const asset of ["main.js", "pdf-export.js", "pdfjs-loader.js", "history.js", "signature-pad.js", "signature-storage.js"]) {
   assert(serviceWorkerSource.includes(`"./js/${asset}"`), `service worker does not precache ${asset}`);
 }
