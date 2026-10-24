@@ -46,6 +46,14 @@ const inkAnnotation = {
   style,
   content: { paths: [[{ x: 100, y: 160 }, { x: 120, y: 190 }, { x: 140, y: 170 }]] },
 };
+const signatureAnnotation = {
+  editorId: "signature-wasm-1",
+  pageIndex: 0,
+  position: { x: 180, y: 320 },
+  bounds: { left: 180, bottom: 300, right: 260, top: 340 },
+  style,
+  content: { paths: [[{ x: 180, y: 310 }, { x: 220, y: 335 }, { x: 260, y: 315 }]] },
+};
 const highlightAnnotation = {
   editorId: "wasm-highlight-1",
   pageIndex: 0,
@@ -56,8 +64,10 @@ const highlightAnnotation = {
 };
 assert.equal(documentHandle.addTextAnnotation(textAnnotation), "wasm-text-1");
 assert.equal(documentHandle.addInkAnnotation(inkAnnotation), "wasm-ink-1");
+assert.equal(documentHandle.addSignatureAnnotation(signatureAnnotation), "signature-wasm-1");
 assert.equal(documentHandle.addHighlightAnnotation(highlightAnnotation), "wasm-highlight-1");
-assert.equal(documentHandle.listAnnotations().length, 3);
+assert.equal(documentHandle.listAnnotations().length, 4);
+assert.equal(documentHandle.listAnnotations().find((annotation) => annotation.annotationType === "Signature")?.editorId, "signature-wasm-1");
 const oversizedInk = { ...inkAnnotation, editorId: "wasm-ink-oversized", content: { paths: [Array.from({ length: 100001 }, () => ({ x: 120, y: 180 }))] } };
 assert.throws(
   () => documentHandle.addInkAnnotation(oversizedInk),
@@ -69,9 +79,10 @@ const saved = documentHandle.save();
 assert(saved instanceof Uint8Array);
 assert(saved.byteLength > 0);
 const reopenedAnnotated = await openPdfDocument(saved);
-assert.equal(reopenedAnnotated.listAnnotations().length, 3);
+assert.equal(reopenedAnnotated.listAnnotations().length, 4);
+assert.equal(reopenedAnnotated.listAnnotations().find((annotation) => annotation.annotationType === "Signature")?.content.paths.length, 1);
 reopenedAnnotated.removeAnnotation("wasm-highlight-1");
-assert.equal(reopenedAnnotated.listAnnotations().length, 2);
+assert.equal(reopenedAnnotated.listAnnotations().length, 3);
 reopenedAnnotated.dispose();
 documentHandle.dispose();
 assert.throws(

@@ -152,6 +152,45 @@ impl ModiPdfDocument {
         Ok(id.to_string())
     }
 
+    /// Add a visual handwritten signature as a native PDF Ink annotation.
+    #[wasm_bindgen(js_name = addSignatureAnnotation)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_signature_annotation(
+        &mut self,
+        editor_id: String,
+        page_index: u32,
+        position_x: f64,
+        position_y: f64,
+        bounds_left: f64,
+        bounds_bottom: f64,
+        bounds_right: f64,
+        bounds_top: f64,
+        paths: JsValue,
+        color_red: f64,
+        color_green: f64,
+        color_blue: f64,
+        opacity: f64,
+        stroke_width: f64,
+        font_size: f64,
+    ) -> Result<String, JsValue> {
+        let paths = parse_paths(&paths)?;
+        let annotation = InkAnnotation {
+            editor_id: AnnotationId::new(editor_id).map_err(pdf_error)?,
+            page_index: page_index as usize,
+            position: PdfPoint { x: position_x, y: position_y },
+            bounds: PdfRectangle {
+                left: bounds_left,
+                bottom: bounds_bottom,
+                right: bounds_right,
+                top: bounds_top,
+            },
+            style: wire_style(color_red, color_green, color_blue, opacity, stroke_width, font_size),
+            paths,
+        };
+        let id = self.document_mut()?.add_signature_annotation(annotation).map_err(pdf_error)?;
+        Ok(id.to_string())
+    }
+
     /// Add a native Highlight annotation. `quads` is an array of quad objects.
     #[wasm_bindgen(js_name = addHighlightAnnotation)]
     #[allow(clippy::too_many_arguments)]
@@ -460,6 +499,7 @@ fn annotation_js(annotation: &Annotation) -> Result<JsValue, JsValue> {
     let annotation_type = match annotation.annotation_type {
         modipdfy_core::AnnotationType::Text => "Text",
         modipdfy_core::AnnotationType::Ink => "Ink",
+        modipdfy_core::AnnotationType::Signature => "Signature",
         modipdfy_core::AnnotationType::Highlight => "Highlight",
     };
     set_property(&object, "annotationType", &JsValue::from_str(annotation_type))?;
@@ -474,7 +514,7 @@ fn annotation_js(annotation: &Annotation) -> Result<JsValue, JsValue> {
         AnnotationContent::Text { text } => {
             set_property(&content, "text", &JsValue::from_str(text))?;
         }
-        AnnotationContent::Ink { paths } => {
+        AnnotationContent::Ink { paths } | AnnotationContent::Signature { paths } => {
             let path_array = Array::new();
             for path in paths {
                 let points = Array::new();

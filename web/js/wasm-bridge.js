@@ -196,6 +196,20 @@ class PdfDocumentHandle {
     }
   }
 
+  /** Commit one visual handwritten signature as a native Ink annotation through Rust. */
+  addSignatureAnnotation(annotation) {
+    const document = this.#requireDocument();
+    try {
+      const { editorId, pageIndex, position, bounds, style, content } = annotation;
+      return document.addSignatureAnnotation(
+        editorId, pageIndex, position.x, position.y, bounds.left, bounds.bottom, bounds.right, bounds.top,
+        content.paths, style.color.red, style.color.green, style.color.blue, style.opacity, style.strokeWidth, style.fontSize,
+      );
+    } catch (error) {
+      throw translateWasmError(error);
+    }
+  }
+
   /** Commit one completed highlight annotation through Rust. */
   addHighlightAnnotation(annotation) {
     const document = this.#requireDocument();

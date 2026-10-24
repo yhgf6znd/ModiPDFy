@@ -3,6 +3,7 @@ const MAX_HISTORY = 200;
 export const AnnotationType = Object.freeze({
   TEXT: "Text",
   INK: "Ink",
+  SIGNATURE: "Signature",
   HIGHLIGHT: "Highlight",
 });
 
@@ -11,6 +12,7 @@ export const Tool = Object.freeze({
   TEXT: "text",
   PEN: "pen",
   HIGHLIGHT: "highlight",
+  SIGNATURE: "signature",
   ERASER: "eraser",
 });
 

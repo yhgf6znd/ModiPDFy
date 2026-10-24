@@ -270,3 +270,49 @@ fn signed_documents_are_not_mutated() {
         Err(PdfError::SignedDocument { operation: "edit" })
     ));
 }
+
+#[test]
+fn visual_signature_is_native_ink_and_preserves_page_content() {
+    let source = annotation_fixture(false);
+    let original_content = {
+        let raw = Document::load_mem(&source).expect("source reopens");
+        let page_id = raw.get_pages().get(&1).copied().expect("page id");
+        raw.get_page_content(page_id)
+    };
+    let mut document = PdfDocument::from_bytes(&source).expect("fixture loads");
+    let mut signature = ink_annotation();
+    signature.editor_id = AnnotationId::new("signature-1").expect("valid signature id");
+    document.add_signature_annotation(signature).expect("signature adds");
+
+    let listed = document.list_annotations().expect("signature lists");
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].annotation_type, modipdfy_core::AnnotationType::Signature);
+    assert!(matches!(listed[0].content, AnnotationContent::Signature { .. }));
+
+    let saved = document.save_to_bytes().expect("signature saves");
+    let reopened_core = PdfDocument::from_bytes(&saved).expect("signature reopens");
+    assert!(matches!(
+        reopened_core.list_annotations().expect("reopened signature")[0].content,
+        AnnotationContent::Signature { .. }
+    ));
+    let reopened = Document::load_mem(&saved).expect("saved PDF reopens");
+    let page_id = reopened.get_pages().get(&1).copied().expect("page id");
+    let entries = reopened
+        .get_dictionary(page_id)
+        .expect("page dictionary")
+        .get(b"Annots")
+        .expect("annots")
+        .as_array()
+        .expect("annots array");
+    let signature_id = entries
+        .iter()
+        .map(|entry| entry.as_reference().expect("annotation reference"))
+        .map(|id| reopened.get_dictionary(id).expect("annotation dictionary"))
+        .find(|dictionary| {
+            dictionary.get(b"Subtype").and_then(Object::as_name).ok() == Some(b"Ink")
+        })
+        .expect("signature annotation");
+    assert_eq!(signature_id.get(b"Subtype").expect("subtype").as_name().expect("name"), b"Ink");
+    assert!(signature_id.get(b"InkList").is_ok());
+    assert_eq!(reopened.get_page_content(page_id), original_content);
+}

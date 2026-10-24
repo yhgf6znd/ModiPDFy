@@ -185,6 +185,32 @@ impl PdfDocument {
         Ok(annotation.editor_id)
     }
 
+    /// Add a visual handwritten signature as a native PDF Ink annotation.
+    pub fn add_signature_annotation(
+        &mut self,
+        annotation: InkAnnotation,
+    ) -> PdfResult<AnnotationId> {
+        self.ensure_editable("edit")?;
+        let page = self.page_info(annotation.page_index)?;
+        annotation::validate_ink(&annotation, &page)?;
+        if !annotation.editor_id.as_str().starts_with("signature-") {
+            return Err(PdfError::InvalidAnnotationContent {
+                message: "signature IDs must use the signature- prefix".to_string(),
+            });
+        }
+        self.ensure_unique_annotation_id(&annotation.editor_id)?;
+        let object = annotation::build_ink_object(&mut self.document, &annotation, page.object_id);
+        let object_id = self.document.add_object(object);
+        if let Err(error) =
+            annotation::append_annotation_reference(&mut self.document, page.object_id, object_id)
+        {
+            let _ = self.document.remove_object(&object_id);
+            return Err(error);
+        }
+        self.dirty = true;
+        Ok(annotation.editor_id)
+    }
+
     /// Add a native PDF Highlight annotation with standards-compliant QuadPoints.
     pub fn add_highlight_annotation(
         &mut self,

@@ -103,7 +103,7 @@ export class AnnotationOverlay {
       svg.parentElement.append(element);
       return;
     }
-    if (annotation.annotationType === "Ink") {
+    if (annotation.annotationType === "Ink" || annotation.annotationType === "Signature") {
       for (const path of annotation.content.paths) {
         if (path.length < 2) continue;
         const element = document.createElementNS(SVG_NS, "path");
@@ -159,6 +159,23 @@ export class AnnotationOverlay {
   }
 
   #renderTransient(svg, transient, viewport) {
+    if (transient.annotation) {
+      for (const path of transient.annotation.content.paths) {
+        if (path.length < 2) continue;
+        const element = document.createElementNS(SVG_NS, "path");
+        element.setAttribute("class", "interaction-preview");
+        element.setAttribute("d", this.#pathData(path, viewport));
+        element.setAttribute("fill", "none");
+        element.setAttribute("stroke", rgb(transient.annotation.style.color));
+        element.setAttribute("stroke-width", String(transient.annotation.style.strokeWidth * viewport.scale));
+        element.setAttribute("stroke-linecap", "round");
+        element.setAttribute("stroke-linejoin", "round");
+        element.setAttribute("opacity", String(transient.annotation.style.opacity));
+        element.setAttribute("pointer-events", "none");
+        svg.append(element);
+      }
+      return;
+    }
     const path = document.createElementNS(SVG_NS, "path");
     path.setAttribute("class", "interaction-preview");
     path.setAttribute("d", this.#pathData(transient.points, viewport));

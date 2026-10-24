@@ -56,7 +56,7 @@ function translateAnnotation(annotation, delta) {
     right: next.bounds.right + delta.x,
     top: next.bounds.top + delta.y,
   };
-  if (next.annotationType === AnnotationType.INK) {
+  if (next.annotationType === AnnotationType.INK || next.annotationType === AnnotationType.SIGNATURE) {
     next.content.paths = next.content.paths.map((path) => path.map((point) => ({ x: point.x + delta.x, y: point.y + delta.y })));
   } else if (next.annotationType === AnnotationType.HIGHLIGHT) {
     next.content.quads = next.content.quads.map((quad) => Object.fromEntries(Object.entries(quad).map(([key, point]) => [key, { x: point.x + delta.x, y: point.y + delta.y }])));
@@ -68,7 +68,12 @@ function resizeAnnotation(annotation, newBounds) {
   const next = cloneAnnotation(annotation);
   next.position = mapPoint(annotation.position, annotation.bounds, newBounds);
   next.bounds = newBounds;
-  if (next.annotationType === AnnotationType.INK) {
+  if (next.annotationType === AnnotationType.SIGNATURE) {
+    const scaleX = (newBounds.right - newBounds.left) / Math.max(annotation.bounds.right - annotation.bounds.left, 0.0001);
+    const scaleY = (newBounds.top - newBounds.bottom) / Math.max(annotation.bounds.top - annotation.bounds.bottom, 0.0001);
+    next.style.strokeWidth = annotation.style.strokeWidth * Math.min(scaleX, scaleY);
+  }
+  if (next.annotationType === AnnotationType.INK || next.annotationType === AnnotationType.SIGNATURE) {
     next.content.paths = next.content.paths.map((path) => path.map((point) => mapPoint(point, annotation.bounds, newBounds)));
   } else if (next.annotationType === AnnotationType.HIGHLIGHT) {
     next.content.quads = next.content.quads.map((quad) => Object.fromEntries(Object.entries(quad).map(([key, point]) => [key, mapPoint(point, annotation.bounds, newBounds)])));
@@ -93,6 +98,28 @@ function clampBounds(bounds, pageInfo) {
     ? makeBounds(bounds.left + dx, bounds.bottom + dy, bounds.right + dx, bounds.top + dy)
     : bounds;
 }
+function signatureAnnotationAt(signature, pageIndex, point, pageInfo) {
+  const crop = pageInfo?.cropBox ?? { left: 0, bottom: 0, right: 612, top: 792 };
+  const maxWidth = Math.min(220, crop.right - crop.left - 8);
+  const maxHeight = Math.min(120, crop.top - crop.bottom - 8);
+  const scale = Math.min(maxWidth / signature.width, maxHeight / signature.height);
+  const width = Math.max(8, signature.width * scale);
+  const height = Math.max(8, signature.height * scale);
+  const bounds = makeBounds(point.x - width / 2, point.y - height / 2, point.x + width / 2, point.y + height / 2);
+  const paths = signature.paths.map((path) => path.map((item) => ({
+    x: bounds.left + item.x * scale,
+    y: bounds.bottom + (signature.height - item.y) * scale,
+  })));
+  return clampToPage({
+    editorId: `signature-${createEditorId().slice("editor-".length)}`,
+    pageIndex,
+    annotationType: AnnotationType.SIGNATURE,
+    position: paths[0][0],
+    bounds,
+    style: makeStyle({ color: signature.color, opacity: 1, strokeWidth: signature.strokeWidth * scale, fontSize: 14 }),
+    content: { paths },
+  }, pageInfo);
+}
 
 function isEditableTarget(target) {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable;
@@ -115,6 +142,7 @@ export class AnnotationInteraction {
     this.selectedId = null;
     this.gesture = null;
     this.textDraft = null;
+    this.pendingSignature = null;
     this.commandQueue = Promise.resolve();
     this.pagesElement.addEventListener("pointerdown", (event) => this.#pointerDown(event));
     this.pagesElement.addEventListener("pointermove", (event) => this.#pointerMove(event));
@@ -122,9 +150,20 @@ export class AnnotationInteraction {
     this.pagesElement.addEventListener("pointercancel", (event) => this.#cancelGesture(event));
     this.viewportElement.addEventListener("keydown", (event) => this.#keyDown(event));
   }
-
   setDocument(documentHandle) {
     this.documentHandle = documentHandle;
+  }
+
+  beginSignaturePlacement(signature) {
+    this.pendingSignature = cloneAnnotation(signature);
+    this.setTool(Tool.SIGNATURE);
+    this.onStatus("Move the signature over the page, then click or tap to place it.");
+  }
+
+  cancelSignaturePlacement() {
+    this.pendingSignature = null;
+    this.overlay.clearTransient();
+    this.setTool(Tool.SELECT);
   }
 
   flush() {
@@ -132,6 +171,10 @@ export class AnnotationInteraction {
   }
 
   setTool(tool) {
+    if (tool !== Tool.SIGNATURE && this.pendingSignature) {
+      this.pendingSignature = null;
+      this.overlay.clearTransient();
+    }
     this.tool = tool;
     this.overlay.setTool(tool);
     this.pagesElement.dataset.tool = tool;
@@ -151,6 +194,16 @@ export class AnnotationInteraction {
     this.setSelected(null);
     this.store.commitRemove(annotation);
   }
+  duplicateSelected() {
+    const annotation = this.selectedId ? this.store.get(this.selectedId) : null;
+    if (!annotation || annotation.annotationType !== AnnotationType.SIGNATURE) return;
+    const duplicate = translateAnnotation(annotation, { x: 12, y: -12 });
+    duplicate.editorId = `signature-${createEditorId().slice("editor-".length)}`;
+    const clamped = clampToPage(duplicate, this.getPageInfo(annotation.pageIndex));
+    this.store.commitAdd(clamped);
+    this.setSelected(clamped.editorId);
+  }
+
 
   async undo() {
     const result = this.store.undo();
@@ -193,6 +246,19 @@ export class AnnotationInteraction {
     const pageIndex = Number(pageElement.dataset.pageIndex);
     const annotationTarget = event.target.closest?.("[data-editor-id]");
     const resizeTarget = event.target.closest?.("[data-resize-id]");
+    if (this.tool === Tool.SIGNATURE) {
+      const pagePoint = this.#pointFromEvent(event, pageElement);
+      if (this.pendingSignature) {
+        event.preventDefault();
+        const annotation = signatureAnnotationAt(this.pendingSignature, pageIndex, pagePoint, this.getPageInfo(pageIndex));
+        this.pendingSignature = null;
+        this.overlay.clearTransient();
+        this.store.commitAdd(annotation);
+        this.setSelected(annotation.editorId);
+        this.setTool(Tool.SELECT);
+      }
+      return;
+    }
     if (this.tool === Tool.PEN) {
       event.preventDefault();
       this.#startDrawing(event, pageIndex, pageElement);
@@ -240,7 +306,17 @@ export class AnnotationInteraction {
   }
 
   #pointerMove(event) {
-    if (!this.gesture || event.pointerId !== this.gesture.pointerId) return;
+    if (!this.gesture) {
+      if (this.tool === Tool.SIGNATURE && this.pendingSignature) {
+        const pageElement = event.target.closest?.(".pdf-page");
+        if (!pageElement) return;
+        const pageIndex = Number(pageElement.dataset.pageIndex);
+        const point = this.#pointFromEvent(event, pageElement);
+        this.overlay.setTransient({ pageIndex, annotation: signatureAnnotationAt(this.pendingSignature, pageIndex, point, this.getPageInfo(pageIndex)) });
+      }
+      return;
+    }
+    if (event.pointerId !== this.gesture.pointerId) return;
     event.preventDefault();
     const point = this.#pointFromEvent(event, this.gesture.pageElement);
     if (this.gesture.type === "draw") {
@@ -256,7 +332,16 @@ export class AnnotationInteraction {
     }
     if (this.gesture.type === "resize") {
       const old = this.gesture.original.bounds;
-      const newBounds = makeBounds(old.left, old.bottom, Math.max(old.left + MIN_RESIZE_WIDTH, point.x), Math.max(old.bottom + MIN_RESIZE_HEIGHT, point.y));
+      let newBounds;
+      if (this.gesture.original.annotationType === AnnotationType.SIGNATURE) {
+        const ratio = (old.right - old.left) / Math.max(old.top - old.bottom, 0.0001);
+        const width = Math.max(MIN_RESIZE_WIDTH, point.x - old.left);
+        const height = Math.max(MIN_RESIZE_HEIGHT, point.y - old.bottom);
+        const proportionalWidth = Math.max(width, height * ratio);
+        newBounds = makeBounds(old.left, old.bottom, old.left + proportionalWidth, old.bottom + proportionalWidth / ratio);
+      } else {
+        newBounds = makeBounds(old.left, old.bottom, Math.max(old.left + MIN_RESIZE_WIDTH, point.x), Math.max(old.bottom + MIN_RESIZE_HEIGHT, point.y));
+      }
       const next = clampToPage(resizeAnnotation(this.gesture.original, newBounds), this.getPageInfo(this.gesture.pageIndex));
       this.store.setPreview(this.gesture.original.editorId, next);
     }
@@ -535,6 +620,7 @@ export class AnnotationInteraction {
   #addToRust(annotation) {
     if (annotation.annotationType === AnnotationType.TEXT) this.documentHandle.addTextAnnotation(annotation);
     else if (annotation.annotationType === AnnotationType.INK) this.documentHandle.addInkAnnotation(annotation);
+    else if (annotation.annotationType === AnnotationType.SIGNATURE) this.documentHandle.addSignatureAnnotation(annotation);
     else this.documentHandle.addHighlightAnnotation(annotation);
   }
 }

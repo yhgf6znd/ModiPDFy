@@ -167,6 +167,7 @@ pub struct HighlightAnnotation {
 pub enum AnnotationType {
     Text,
     Ink,
+    Signature,
     Highlight,
 }
 
@@ -175,6 +176,7 @@ pub enum AnnotationType {
 pub enum AnnotationContent {
     Text { text: String },
     Ink { paths: Vec<Vec<PdfPoint>> },
+    Signature { paths: Vec<Vec<PdfPoint>> },
     Highlight { quads: Vec<PdfQuad> },
 }
 
@@ -565,6 +567,12 @@ pub(crate) fn parse_annotation(
         PdfError::AnnotationParse { message: "annotation is missing /Rect".to_string() }
     })?)?;
     let editor_id = parse_editor_id(document, dictionary, page_index, object_id, fallback_index)?;
+    let annotation_type =
+        if annotation_type == AnnotationType::Ink && editor_id.as_str().starts_with("signature-") {
+            AnnotationType::Signature
+        } else {
+            annotation_type
+        };
     let style = parse_style(document, dictionary, annotation_type)?;
     let (position, content) = match annotation_type {
         AnnotationType::Text => {
@@ -576,7 +584,7 @@ pub(crate) fn parse_annotation(
                 .unwrap_or_default();
             (PdfPoint { x: bounds.left, y: bounds.top }, AnnotationContent::Text { text })
         }
-        AnnotationType::Ink => {
+        AnnotationType::Ink | AnnotationType::Signature => {
             let paths = parse_ink_paths(dictionary.get(b"InkList").map_err(|_| {
                 PdfError::AnnotationParse {
                     message: "ink annotation is missing /InkList".to_string(),
@@ -587,7 +595,12 @@ pub(crate) fn parse_annotation(
                 .and_then(|path| path.first())
                 .copied()
                 .unwrap_or(PdfPoint { x: bounds.left, y: bounds.bottom });
-            (position, AnnotationContent::Ink { paths })
+            let content = if annotation_type == AnnotationType::Signature {
+                AnnotationContent::Signature { paths }
+            } else {
+                AnnotationContent::Ink { paths }
+            };
+            (position, content)
         }
         AnnotationType::Highlight => {
             let quads = parse_quads(dictionary.get(b"QuadPoints").map_err(|_| {
