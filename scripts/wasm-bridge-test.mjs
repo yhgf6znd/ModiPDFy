@@ -149,6 +149,24 @@ await assert.rejects(
   (error) => error instanceof WasmBridgeError && error.code === "invalid_export_state",
 );
 const saved = await exportPdfBytes({ documentHandle, annotations: documentHandle.listAnnotations(), reopen: openPdfDocument });
+const driftedState = structuredClone(documentHandle.listAnnotations());
+driftedState.find((annotation) => annotation.annotationType === "Text").position.x += 1;
+await assert.rejects(
+  () => exportPdfBytes({ documentHandle, annotations: driftedState, reopen: openPdfDocument }),
+  (error) => error instanceof WasmBridgeError && error.code === "invalid_export_state",
+);
+const malformedSignaturePaths = structuredClone(documentHandle.listAnnotations());
+malformedSignaturePaths.find((annotation) => annotation.annotationType === "Signature").content.paths[0][0].x += 1;
+await assert.rejects(
+  () => exportPdfBytes({ documentHandle, annotations: malformedSignaturePaths, reopen: openPdfDocument }),
+  (error) => error instanceof WasmBridgeError && error.code === "invalid_export_state",
+);
+const malformedEditorId = structuredClone(documentHandle.listAnnotations());
+malformedEditorId[0].editorId = "invalid(id";
+await assert.rejects(
+  () => exportPdfBytes({ documentHandle, annotations: malformedEditorId, reopen: openPdfDocument }),
+  (error) => error instanceof WasmBridgeError && error.code === "invalid_export_state",
+);
 assert(saved instanceof Uint8Array);
 assert(saved.byteLength > 0);
 assert.deepEqual(source, originalSource, "export mutated the original browser-owned bytes");

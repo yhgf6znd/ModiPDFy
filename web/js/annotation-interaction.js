@@ -548,7 +548,7 @@ export class AnnotationInteraction {
         editorId: createEditorId(),
         pageIndex,
         annotationType: AnnotationType.HIGHLIGHT,
-        position: allPoints[0],
+        position: quads[0].bottomLeft,
         bounds: pointBounds(allPoints),
         style: this.controls.highlightStyle(),
         content: { quads },
