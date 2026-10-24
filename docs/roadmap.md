@@ -48,7 +48,7 @@ Complete and harden the initial release tools:
 - notes and basic annotation styling;
 - selecting, moving, resizing where applicable, editing, deleting, and undoing annotation operations.
 
-Exit evidence: keyboard and pointer workflows are accessible; committed-state exports reopen through Rust/WASM, PDF.js, and the local independent-reader checks; page count, rotation, annotation IDs, and source text are preserved; and annotation-only changes preserve unrelated page content. Native Firefox's built-in PDF viewer and Evince previewer have loaded a generated export over localhost. Chrome and Adobe Acrobat regression runs remain unavailable in the current environment.
+Exit evidence: keyboard and pointer workflows are accessible; committed-state exports reopen through Rust/WASM, PDF.js, and the local independent-reader checks; page count, rotation, annotation IDs, and source text are preserved; and annotation-only changes preserve unrelated page content. Chromium WebDriver passed the WASM, viewer, annotation, and production download flows. Native Firefox's built-in PDF viewer and Evince previewer also loaded a generated export over localhost. Adobe Acrobat regression runs remain unavailable in the current environment.
 
 ## Phase 4 — hardening and publication
 
