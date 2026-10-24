@@ -1,4 +1,6 @@
-use lopdf::{Document, Object, Stream, dictionary};
+use lopdf::{
+    Document, EncryptionState, EncryptionVersion, Object, Permissions, Stream, dictionary,
+};
 use modipdfy_core::{
     AnnotationContent, AnnotationId, AnnotationStyle, HighlightAnnotation, InkAnnotation, PdfColor,
     PdfDocument, PdfError, PdfPoint, PdfQuad, PdfRectangle, SignatureAnnotation, SignatureStroke,
@@ -45,6 +47,26 @@ fn annotation_fixture(include_signature: bool) -> Vec<u8> {
     }
     let mut bytes = Vec::new();
     document.save_to(&mut bytes).expect("fixture should serialize");
+    bytes
+}
+
+fn encrypted_fixture() -> Vec<u8> {
+    let mut document = Document::load_mem(&annotation_fixture(false)).expect("source loads");
+    let id = vec![0x42u8; 16];
+    document
+        .trailer
+        .set("ID", vec![Object::string_literal(id.clone()), Object::string_literal(id)]);
+    let state = EncryptionState::try_from(EncryptionVersion::V2 {
+        document: &mut document,
+        owner_password: "owner",
+        user_password: "",
+        key_length: 128,
+        permissions: Permissions::PRINTABLE,
+    })
+    .expect("encryption state builds");
+    document.encrypt(&state).expect("document encrypts");
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes).expect("encrypted fixture saves");
     bytes
 }
 
@@ -270,6 +292,19 @@ fn signed_documents_are_not_mutated() {
         document.add_text_annotation(text_annotation()),
         Err(PdfError::SignedDocument { operation: "edit" })
     ));
+}
+
+#[test]
+fn encrypted_documents_are_not_mutated() {
+    let source = encrypted_fixture();
+    let mut document =
+        PdfDocument::from_bytes(&source).expect("encrypted fixture loads with empty user password");
+    assert!(document.metadata().was_encrypted);
+    assert!(matches!(
+        document.add_text_annotation(text_annotation()),
+        Err(PdfError::EncryptedDocument { operation: "edit" })
+    ));
+    assert_eq!(document.save_to_bytes().expect("untouched encrypted bytes return"), source);
 }
 
 #[test]

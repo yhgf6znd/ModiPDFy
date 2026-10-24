@@ -51,6 +51,18 @@ function validatePaths(paths, bounds, pageInfo, label) {
   }
 }
 
+function samePageInfo(before, after) {
+  for (const key of ["width", "height", "rotationDegrees"]) {
+    if (Math.abs(before[key] - after[key]) > EPSILON) return false;
+  }
+  for (const box of ["mediaBox", "cropBox"]) {
+    for (const key of ["left", "bottom", "right", "top"]) {
+      if (Math.abs(before[box][key] - after[box][key]) > EPSILON) return false;
+    }
+  }
+  return true;
+}
+
 function validateAnnotation(annotation, pageInfo) {
   if (!annotation || !Number.isSafeInteger(annotation.pageIndex) || annotation.pageIndex < 0) fail("Annotation page reference is invalid.");
   if (typeof annotation.editorId !== "string" || annotation.editorId.length === 0) fail("Annotation editor ID is invalid.");
@@ -87,6 +99,7 @@ export function validateExportState(documentHandle, annotations) {
     validateAnnotation(annotation, documentHandle.pageInfo(annotation.pageIndex));
   }
   const rustIds = new Set(documentHandle.listAnnotations().map((annotation) => annotation.editorId));
+  if (rustIds.size !== ids.size) fail("Committed editor state does not match the Rust document.");
   for (const id of ids) if (!rustIds.has(id)) fail(`${id} is not committed to the Rust document.`);
   return true;
 }
@@ -96,9 +109,17 @@ export async function exportPdfBytes({ documentHandle, annotations, reopen }) {
   validateExportState(documentHandle, annotations);
   const bytes = documentHandle.save();
   if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) throw new WasmBridgeError("serialization_failed", "Rust returned no PDF bytes.", false);
-  const reopened = await reopen(bytes);
+  let reopened;
+  try {
+    reopened = await reopen(bytes);
+  } catch {
+    throw new WasmBridgeError("serialization_failed", "The exported PDF could not be reopened after serialization.", false);
+  }
   try {
     if (reopened.pageCount() !== documentHandle.pageCount()) throw new WasmBridgeError("serialization_failed", "Exported PDF page count changed.", false);
+    for (let pageIndex = 0; pageIndex < documentHandle.pageCount(); pageIndex += 1) {
+      if (!samePageInfo(documentHandle.pageInfo(pageIndex), reopened.pageInfo(pageIndex))) throw new WasmBridgeError("serialization_failed", `Exported PDF page ${pageIndex + 1} dimensions or order changed.`, false);
+    }
     const exportedIds = new Set(reopened.listAnnotations().map((annotation) => annotation.editorId));
     for (const annotation of annotations) if (!exportedIds.has(annotation.editorId)) throw new WasmBridgeError("serialization_failed", `Exported PDF lost annotation ${annotation.editorId}.`, false);
   } finally {

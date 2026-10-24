@@ -53,6 +53,10 @@ export function translateWasmError(error) {
     return error;
   }
 
+  if (error instanceof RangeError || (typeof WebAssembly !== "undefined" && error instanceof WebAssembly.RuntimeError && /memory|out of bounds/i.test(error.message))) {
+    return new WasmBridgeError("memory_exhausted", "The browser could not process this PDF because it ran out of memory.", true);
+  }
+
   if (error && typeof error === "object" && typeof error.code === "string") {
     return new WasmBridgeError(
       error.code,

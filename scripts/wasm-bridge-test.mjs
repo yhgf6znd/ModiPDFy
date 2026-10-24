@@ -9,14 +9,55 @@ import { exportPdfBytes } from "../web/js/pdf-export.js";
 import {
   initializeWasm,
   openPdfDocument,
+  translateWasmError,
   WasmBridgeError,
 } from "../web/js/wasm-bridge.js";
 
 const wasmBytes = await readFile(new URL("../web/pkg/modipdfy_wasm_bg.wasm", import.meta.url));
 const wasmModule = await WebAssembly.compile(wasmBytes);
 await initializeWasm({ module_or_path: wasmModule });
+assert.equal(translateWasmError(new RangeError("memory access out of bounds")).code, "memory_exhausted");
+
+async function readPpm(path) {
+  const bytes = await readFile(path);
+  let offset = 0;
+  const token = () => {
+    while (offset < bytes.length && (bytes[offset] === 10 || bytes[offset] === 13 || bytes[offset] === 32 || bytes[offset] === 9)) offset += 1;
+    if (bytes[offset] === 35) {
+      while (offset < bytes.length && bytes[offset] !== 10) offset += 1;
+      return token();
+    }
+    const start = offset;
+    while (offset < bytes.length && ![10, 13, 32, 9].includes(bytes[offset])) offset += 1;
+    return bytes.subarray(start, offset).toString("ascii");
+  };
+  assert.equal(token(), "P6");
+  const width = Number(token());
+  const height = Number(token());
+  assert.equal(Number(token()), 255);
+  while (offset < bytes.length && (bytes[offset] === 10 || bytes[offset] === 13 || bytes[offset] === 32 || bytes[offset] === 9)) offset += 1;
+  return { width, height, pixels: bytes.subarray(offset) };
+}
+
+function changedPixels(before, after, bounds) {
+  assert.equal(before.width, after.width);
+  assert.equal(before.height, after.height);
+  let changed = 0;
+  const left = Math.max(0, Math.floor(bounds.left));
+  const right = Math.min(before.width, Math.ceil(bounds.right));
+  const top = Math.max(0, before.height - Math.ceil(bounds.top));
+  const bottom = Math.min(before.height, before.height - Math.floor(bounds.bottom));
+  for (let y = top; y < bottom; y += 1) {
+    for (let x = left; x < right; x += 1) {
+      const pixel = (y * before.width + x) * 3;
+      if (before.pixels[pixel] !== after.pixels[pixel] || before.pixels[pixel + 1] !== after.pixels[pixel + 1] || before.pixels[pixel + 2] !== after.pixels[pixel + 2]) changed += 1;
+    }
+  }
+  return changed;
+}
 
 const source = createMultipagePdfFixture(3);
+const originalSource = source.slice();
 const documentHandle = await openPdfDocument(source);
 assert.equal(documentHandle.pageCount(), 3);
 assert.equal(documentHandle.pageInfo(1).rotationDegrees, 90);
@@ -87,10 +128,13 @@ assert.throws(
 const saved = await exportPdfBytes({ documentHandle, annotations: documentHandle.listAnnotations(), reopen: openPdfDocument });
 assert(saved instanceof Uint8Array);
 assert(saved.byteLength > 0);
+assert.deepEqual(source, originalSource, "export mutated the original browser-owned bytes");
 
 const exportDirectory = await mkdtemp(join(tmpdir(), "modipdfy-export-"));
 try {
   const exportPath = join(exportDirectory, "modified.pdf");
+  const sourcePath = join(exportDirectory, "source.pdf");
+  await writeFile(sourcePath, source);
   await writeFile(exportPath, saved);
   const pdfInfo = execFileSync("pdfinfo", [exportPath], { encoding: "utf8" });
   assert.match(pdfInfo, /Pages:\s+3/);
@@ -101,12 +145,31 @@ try {
   const renderPrefix = join(exportDirectory, "page");
   execFileSync("pdftoppm", ["-f", "1", "-l", "1", "-singlefile", "-png", exportPath, renderPrefix]);
   assert((await stat(`${renderPrefix}.png`)).size > 0);
+  const sourceRenderPrefix = join(exportDirectory, "source-page-1");
+  const exportedRenderPrefix = join(exportDirectory, "exported-page-1");
+  const sourcePage3Prefix = join(exportDirectory, "source-page-3");
+  const exportedPage3Prefix = join(exportDirectory, "exported-page-3");
+  for (const [path, prefix, page] of [[sourcePath, sourceRenderPrefix, 1], [exportPath, exportedRenderPrefix, 1], [sourcePath, sourcePage3Prefix, 3], [exportPath, exportedPage3Prefix, 3]]) {
+    execFileSync("pdftoppm", ["-f", String(page), "-l", String(page), "-singlefile", "-r", "72", path, prefix]);
+  }
+  const sourcePage1 = await readPpm(`${sourceRenderPrefix}.ppm`);
+  const exportedPage1 = await readPpm(`${exportedRenderPrefix}.ppm`);
+  const sourcePage3 = await readPpm(`${sourcePage3Prefix}.ppm`);
+  const exportedPage3 = await readPpm(`${exportedPage3Prefix}.ppm`);
+  assert.deepEqual(sourcePage3.pixels, exportedPage3.pixels, "unaffected page pixels changed during export");
+  assert(changedPixels(sourcePage1, exportedPage1, { left: 72, bottom: 80, right: 240, top: 140 }) > 0, "text appearance did not change rendered pixels");
+  assert(changedPixels(sourcePage1, exportedPage1, { left: 100, bottom: 160, right: 140, top: 200 }) > 0, "ink appearance did not change rendered pixels");
+  assert(changedPixels(sourcePage1, exportedPage1, { left: 180, bottom: 300, right: 260, top: 340 }) > 0, "signature appearance did not change rendered pixels");
+  assert(changedPixels(sourcePage1, exportedPage1, { left: 80, bottom: 220, right: 280, top: 250 }) > 0, "highlight appearance did not change rendered pixels");
 } finally {
   await rm(exportDirectory, { recursive: true, force: true });
 }
 const reopenedAnnotated = await openPdfDocument(saved);
 assert.equal(reopenedAnnotated.listAnnotations().length, 4);
 assert.equal(reopenedAnnotated.listAnnotations().find((annotation) => annotation.annotationType === "Signature")?.content.strokes[0].strokeWidth, 5);
+const reopenedSignature = reopenedAnnotated.listAnnotations().find((annotation) => annotation.annotationType === "Signature");
+assert.deepEqual(reopenedSignature.bounds, signatureAnnotation.bounds, "signature bounds changed during export");
+assert(reopenedSignature.content.strokes[0].points.every((point) => point.x >= reopenedSignature.bounds.left && point.x <= reopenedSignature.bounds.right && point.y >= reopenedSignature.bounds.bottom && point.y <= reopenedSignature.bounds.top), "signature stroke escaped its exported bounds");
 reopenedAnnotated.removeAnnotation("wasm-highlight-1");
 assert.equal(reopenedAnnotated.listAnnotations().length, 3);
 reopenedAnnotated.dispose();

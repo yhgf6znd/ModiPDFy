@@ -674,7 +674,8 @@ fn annotation_js(annotation: &Annotation) -> Result<JsValue, JsValue> {
 
 fn pdf_error(error: PdfError) -> JsValue {
     let (code, recoverable) = match &error {
-        PdfError::EmptyInput | PdfError::InputTooLarge { .. } => ("invalid_input", true),
+        PdfError::EmptyInput => ("invalid_input", true),
+        PdfError::InputTooLarge { .. } => ("input_too_large", true),
         PdfError::MalformedPdf { .. } | PdfError::ParserPanicked => ("malformed_pdf", false),
         PdfError::PageIndexOutOfRange { .. } => ("invalid_page_index", true),
         PdfError::MissingPageAttribute { .. }

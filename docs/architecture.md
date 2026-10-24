@@ -229,7 +229,7 @@ Testing is layered:
 - Browser annotation coverage must include pen, text commit/edit, highlight selection, selection/move/delete, keyboard cancellation, Rust persistence, and invariant PDF coordinates across zoom and rotation.
 - Accessibility checks for keyboard operation, focus management, labels, contrast, reduced motion, and screen-reader names.
 
-Every export feature needs a round-trip test: export, reopen through `modipdfy-core` via the WASM bridge, render with PDF.js where feasible, and compare the expected annotation/content properties. The current WASM integration test also validates the exported file with `pdfinfo`, `pdftotext`, Ghostscript, and Poppler `pdftoppm` when those independent tools are installed. Fixtures must be legally redistributable and contain no personal documents.
+Every export feature needs a round-trip test: export, reopen through `modipdfy-core` via the WASM bridge, render with PDF.js where feasible, and compare the expected annotation/content properties. The current WASM integration test also validates the exported file with `pdfinfo`, `pdftotext`, Ghostscript, and Poppler `pdftoppm`; it compares an unaffected page pixel-for-pixel with the source, checks rendered changes in each supported annotation region, verifies signature geometry, and rejects truncated output. These checks require the independent tools. Fixtures must be legally redistributable and contain no personal documents.
 
 ## 10. Offline PWA strategy
 
