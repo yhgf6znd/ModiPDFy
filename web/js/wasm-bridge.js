@@ -265,10 +265,13 @@ class PdfDocumentHandle {
 
   /** Release Rust and generated WASM resources. Repeated calls are safe. */
   dispose() {
-    if (this.#document) {
-      this.#document.dispose();
-      this.#document.free();
-      this.#document = undefined;
+    const document = this.#document;
+    if (!document) return;
+    this.#document = undefined;
+    try {
+      document.dispose();
+    } finally {
+      document.free();
     }
   }
 
