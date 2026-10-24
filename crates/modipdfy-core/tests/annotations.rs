@@ -340,12 +340,22 @@ fn visual_signature_is_native_ink_and_preserves_page_content() {
             },
         ],
     };
+    let mut ordinary_ink = ink_annotation();
+    ordinary_ink.editor_id = AnnotationId::new("signature-ordinary-ink").expect("valid id");
+    document.add_ink_annotation(ordinary_ink).expect("ordinary ink adds");
     document.add_signature_annotation(signature).expect("signature adds");
 
     let listed = document.list_annotations().expect("signature lists");
-    assert_eq!(listed.len(), 1);
-    assert_eq!(listed[0].annotation_type, modipdfy_core::AnnotationType::Signature);
-    match &listed[0].content {
+    assert_eq!(listed.len(), 2);
+    let listed_signature = listed
+        .iter()
+        .find(|annotation| annotation.editor_id.as_str() == "signature-1")
+        .expect("signature listing");
+    assert!(
+        listed.iter().any(|annotation| annotation.editor_id.as_str() == "signature-ordinary-ink"
+            && annotation.annotation_type == modipdfy_core::AnnotationType::Ink)
+    );
+    match &listed_signature.content {
         AnnotationContent::Signature { strokes } => {
             assert_eq!(strokes.len(), 2);
             assert_eq!(strokes[1].style.stroke_width, 5.0);
@@ -356,7 +366,13 @@ fn visual_signature_is_native_ink_and_preserves_page_content() {
 
     let saved = document.save_to_bytes().expect("signature saves");
     let reopened_core = PdfDocument::from_bytes(&saved).expect("signature reopens");
-    match &reopened_core.list_annotations().expect("reopened signature")[0].content {
+    let reopened_signature = reopened_core
+        .list_annotations()
+        .expect("reopened signature")
+        .into_iter()
+        .find(|annotation| annotation.editor_id.as_str() == "signature-1")
+        .expect("reopened signature listing");
+    match &reopened_signature.content {
         AnnotationContent::Signature { strokes } => assert_eq!(strokes[1].style.stroke_width, 5.0),
         other => panic!("expected reopened signature content, got {other:?}"),
     }

@@ -694,7 +694,7 @@ pub(crate) fn parse_annotation(
     })?)?;
     let editor_id = parse_editor_id(document, dictionary, page_index, object_id, fallback_index)?;
     let annotation_type =
-        if annotation_type == AnnotationType::Ink && editor_id.as_str().starts_with("signature-") {
+        if annotation_type == AnnotationType::Ink && dictionary.get(b"MPDFyStrokeStyles").is_ok() {
             AnnotationType::Signature
         } else {
             annotation_type
