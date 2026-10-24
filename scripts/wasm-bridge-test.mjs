@@ -17,6 +17,11 @@ const wasmBytes = await readFile(new URL("../web/pkg/modipdfy_wasm_bg.wasm", imp
 const wasmModule = await WebAssembly.compile(wasmBytes);
 await initializeWasm({ module_or_path: wasmModule });
 assert.equal(translateWasmError(new RangeError("memory access out of bounds")).code, "memory_exhausted");
+const serviceWorkerSource = await readFile(new URL("../web/sw.js", import.meta.url), "utf8");
+assert(serviceWorkerSource.includes("modipdfy-shell-v3"), "service-worker cache version was not updated");
+for (const asset of ["main.js", "pdf-export.js", "pdfjs-loader.js", "history.js", "signature-pad.js", "signature-storage.js"]) {
+  assert(serviceWorkerSource.includes(`"./js/${asset}"`), `service worker does not precache ${asset}`);
+}
 
 async function readPpm(path) {
   const bytes = await readFile(path);
