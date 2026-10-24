@@ -33,7 +33,7 @@ Status: complete — native annotation engine and initial browser tools delivere
 - SVG/HTML overlay rendering, canonical PDF-to-viewport transforms, and native pointer-event interaction tests.
 - Export/reopen fixtures for unrotated and rotated/cropped pages.
 
-Exit evidence: native tests add, save, reopen, and inspect all three annotation types, preserve page content and existing annotations, and block signed-document mutation. Browser tests cover the WASM bridge, PDF.js viewer lifecycle, pen, text, top-edge geometry, keyboard activation, highlight selection, selection/move, deletion, Rust persistence, and zoom stability. Queue rollback and bounded annotation input are covered. Handwritten signatures, offline reload, and fuzzing remain open; Acrobat-specific verification remains unavailable.
+Exit evidence: native tests add, save, reopen, and inspect all three annotation types, preserve page content and existing annotations, and block signed-document mutation. Browser tests cover the WASM bridge, PDF.js viewer lifecycle, pen, text, top-edge geometry, keyboard activation, highlight selection, selection/move, deletion, Rust persistence, and zoom stability. Queue rollback and bounded annotation input are covered. Handwritten signatures, offline reload, and fuzzing remain open. Adobe Acrobat Reader 32-bit under Wine opened the current local export in an isolated nested display and recorded the expected three-page document; this is compatibility evidence, not native Windows/macOS Acrobat coverage.
 
 ## Phase 3 — initial annotation tools
 
@@ -48,7 +48,7 @@ Complete and harden the initial release tools:
 - notes and basic annotation styling;
 - selecting, moving, resizing where applicable, editing, deleting, and undoing annotation operations.
 
-Exit evidence: keyboard and pointer workflows are accessible; committed-state exports reopen through Rust/WASM, PDF.js, and the local independent-reader checks; page count, rotation, annotation IDs, and source text are preserved; and annotation-only changes preserve unrelated page content. Chromium WebDriver passed the WASM, viewer, annotation, and production download flows. Native Firefox's built-in PDF viewer and Evince previewer also loaded a generated export over localhost. Adobe Acrobat regression runs remain unavailable in the current environment.
+Exit evidence: keyboard and pointer workflows are accessible; committed-state exports reopen through Rust/WASM, PDF.js, and the local independent-reader checks; page count, rotation, annotation IDs, annotation geometry/content, and source text are preserved; and annotation-only changes preserve unrelated page content. Chromium WebDriver passed the WASM, viewer, annotation, and production download flows. Native Firefox's built-in PDF viewer and Evince previewer also loaded a generated export over localhost. Adobe Acrobat Reader 32-bit under Wine accepted the generated three-page export as a local file; native Acrobat visual regression coverage remains open.
 
 ## Phase 4 — hardening and publication
 
@@ -81,4 +81,4 @@ Each future feature must preserve the same browser-only privacy boundary and mus
 7. **PDF.js and Rust/WASM packaging.** Worker paths, cross-origin isolation assumptions, asset pinning, CMap/font precaching, and GitHub Pages subpaths need deployment tests.
 8. **Browser API variability.** File System Access API and persistent storage are not universal. Download via `Blob` must remain the portable baseline.
 9. **Undo/redo and export state.** The browser history is capped and export waits for queued commands, but repeated add/remove edits leave unreachable appearance-support objects in the lopdf object table until a future compaction policy is designed. The design must not retain unbounded full-document copies or confuse PDF object identity with session annotation IDs.
-10. **Independent-reader and offline evidence.** Semantic reopenability is covered by lopdf and PDF.js, and the automated export fixture is checked with Poppler and Ghostscript. Adobe Acrobat and deployed GitHub Pages offline reload still need environment-specific verification; Chromium WebDriver, native Firefox, Evince, Poppler, and Ghostscript coverage is recorded locally.
+10. **Independent-reader and offline evidence.** Semantic reopenability is covered by lopdf and PDF.js, and the automated export fixture is checked with Poppler and Ghostscript. Adobe Reader acceptance is covered through an isolated Wine installation, but native Windows/macOS Acrobat visual regression and deployed GitHub Pages offline reload still need environment-specific verification; Chromium WebDriver, native Firefox, Evince, Poppler, and Ghostscript coverage is recorded locally.
