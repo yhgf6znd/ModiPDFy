@@ -177,24 +177,25 @@ async function openFile(file) {
     const buffer = await file.arrayBuffer();
     const wasmBytes = new Uint8Array(buffer);
     const viewerBytes = new Uint8Array(buffer.slice(0));
-    const nextDocument = await openPdfDocument(wasmBytes);
+    let nextDocument = await openPdfDocument(wasmBytes);
     try {
       await viewer.openBytes(viewerBytes, { name: file.name });
-    } catch (error) {
-      nextDocument.dispose();
-      throw error;
+      const annotations = nextDocument.listAnnotations();
+      const metadata = nextDocument.metadata();
+      documentHandle?.dispose();
+      documentHandle = nextDocument;
+      nextDocument = null;
+      interaction.setDocument(documentHandle);
+      store.replaceAll(annotations);
+      selectedAnnotation = null;
+      interaction.setSelected(null);
+      elements.documentName.textContent = file.name;
+      const warning = metadata.warnings?.[0];
+      setStatus(warning ? `Opened with warning: ${warning}` : "Ready. Select a tool to annotate this local document.", warning ? "warning" : "ready");
+      updateDocumentControls();
+    } finally {
+      nextDocument?.dispose();
     }
-    documentHandle?.dispose();
-    documentHandle = nextDocument;
-    interaction.setDocument(documentHandle);
-    store.replaceAll(documentHandle.listAnnotations());
-    selectedAnnotation = null;
-    interaction.setSelected(null);
-    elements.documentName.textContent = file.name;
-    const metadata = documentHandle.metadata();
-    const warning = metadata.warnings?.[0];
-    setStatus(warning ? `Opened with warning: ${warning}` : "Ready. Select a tool to annotate this local document.", warning ? "warning" : "ready");
-    updateDocumentControls();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown PDF error";
     setStatus(`Could not open PDF: ${message}`, "error");
