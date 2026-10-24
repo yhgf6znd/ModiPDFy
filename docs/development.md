@@ -101,7 +101,7 @@ npm run build
 node scripts/serve.mjs .
 ```
 
-The WASM harness exercises initialization, typed-array PDF loading, page count, page dimensions, annotation add/list/remove, export, malformed-input errors, explicit disposal, and repeated open/close operations. The annotation harness exercises signature-pad mouse/touch/stylus capture, signature placement/move/proportional resize/duplicate/delete, export/reopen, pen, touch, and mouse drawing, text placement/editing, selection/move, highlight selection, deletion, keyboard activation, Rust persistence, rotated-page crop-box clamping, zoom, and viewer-resize coordinate stability. The viewer smoke page is [`tests/browser/viewer.html`](../tests/browser/viewer.html); it uses the same [`web/js/pdf-viewer.js`](../web/js/pdf-viewer.js) module used by the application and documents the browser-only rendering checks.
+The WASM harness exercises initialization, typed-array PDF loading, page count, page dimensions, annotation add/list/remove, export, malformed-input errors, explicit disposal, and repeated open/close operations. The annotation harness exercises signature-pad mouse/touch/stylus capture, signature placement/move/proportional resize/duplicate/delete, export/reopen, signature undo/redo, pen, touch, and mouse drawing, text placement/editing, selection/move, highlight selection, deletion, keyboard activation, Rust persistence, rotated-page crop-box clamping, zoom, and viewer-resize coordinate stability. The viewer smoke page is [`tests/browser/viewer.html`](../tests/browser/viewer.html); it uses the same [`web/js/pdf-viewer.js`](../web/js/pdf-viewer.js) module used by the application and documents the browser-only rendering checks.
 
 ## Test expectations
 

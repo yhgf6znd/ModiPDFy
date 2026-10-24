@@ -1,4 +1,10 @@
-const MAX_HISTORY = 200;
+import {
+  CommandHistory,
+  makeAddCommand,
+  makeRemoveCommand,
+  makeUpdateCommand,
+  invertCommand as historyInvertCommand,
+} from "./history.js";
 
 export const AnnotationType = Object.freeze({
   TEXT: "Text",
@@ -54,11 +60,10 @@ export function annotationContent(annotation) {
  * Preview values never enter history and are cleared when a pointer gesture ends.
  */
 export class AnnotationStore {
-  constructor({ onChange = () => {}, onCommand = () => {} } = {}) {
+  constructor({ onChange = () => {}, onCommand = () => {}, historyCapacity = 200 } = {}) {
     this.annotations = new Map();
     this.previews = new Map();
-    this.history = [];
-    this.redoStack = [];
+    this.commandHistory = new CommandHistory({ capacity: historyCapacity, onChange: () => this.#emit() });
     this.onChange = onChange;
     this.onCommand = onCommand;
   }
@@ -66,8 +71,7 @@ export class AnnotationStore {
   replaceAll(annotations) {
     this.annotations = new Map(annotations.map((annotation) => [annotation.editorId, cloneAnnotation(annotation)]));
     this.previews.clear();
-    this.history = [];
-    this.redoStack = [];
+    this.commandHistory.clear();
     this.#emit();
   }
 
@@ -81,6 +85,22 @@ export class AnnotationStore {
 
   valuesForPage(pageIndex) {
     return this.values().filter((annotation) => annotation.pageIndex === pageIndex);
+  }
+
+  get history() {
+    return this.commandHistory.history;
+  }
+
+  get redoStack() {
+    return this.commandHistory.redoStack;
+  }
+
+  get canUndo() {
+    return this.commandHistory.canUndo;
+  }
+
+  get canRedo() {
+    return this.commandHistory.canRedo;
   }
 
   setPreview(editorId, annotation) {
@@ -97,53 +117,52 @@ export class AnnotationStore {
     }
   }
 
-  commitAdd(annotation) {
-    const command = { type: "add", annotation: cloneAnnotation(annotation) };
+  commitAdd(annotation, operation) {
+    if (!annotation?.editorId || this.annotations.has(annotation.editorId)) return null;
+    const command = makeAddCommand(annotation, operation);
     this.#dispatch(command);
     return command;
   }
 
-  commitUpdate(before, after) {
-    const command = { type: "update", before: cloneAnnotation(before), after: cloneAnnotation(after) };
+  commitUpdate(before, after, operation) {
+    if (!before?.editorId || !after?.editorId || before.editorId !== after.editorId || !this.annotations.has(before.editorId)) return null;
+    const command = makeUpdateCommand(before, after, operation);
+    if (!command || JSON.stringify(before) === JSON.stringify(after)) return null;
     this.#dispatch(command);
     return command;
   }
 
-  commitRemove(annotation) {
-    const command = { type: "remove", annotation: cloneAnnotation(annotation) };
+  commitRemove(annotation, operation) {
+    if (!annotation?.editorId || !this.annotations.has(annotation.editorId)) return null;
+    const command = makeRemoveCommand(annotation, operation);
     this.#dispatch(command);
     return command;
   }
 
   undo() {
-    const command = this.history.pop();
-    if (!command) {
-      return null;
-    }
-    const inverse = invertCommand(command);
+    const result = this.commandHistory.undo();
+    if (!result) return null;
+    const { command, inverse } = result;
     this.#applyCommand(inverse);
-    this.redoStack.push(command);
     this.#emit();
     return { command, inverse };
   }
 
   redo() {
-    const command = this.redoStack.pop();
-    if (!command) {
-      return null;
-    }
+    const command = this.commandHistory.redo();
+    if (!command) return null;
     this.#applyCommand(command);
     this.#emit();
     return command;
   }
 
-  completeRedo(command) {
-    this.history.push(command);
+  restoreRedo(command) {
+    this.commandHistory.restoreRedo(command);
     this.#emit();
   }
 
-  restoreRedo(command) {
-    this.redoStack.push(command);
+  restoreUndo(command) {
+    this.commandHistory.restoreUndo(command);
     this.#emit();
   }
 
@@ -157,19 +176,10 @@ export class AnnotationStore {
     this.#emit();
     const persistence = this.onCommand(command);
     if (persistence && typeof persistence.then === "function") {
-      void persistence.then(() => this.#record(command)).catch(() => {});
+      void persistence.then(() => this.commandHistory.commit(command)).catch(() => {});
     } else {
-      this.#record(command);
+      this.commandHistory.commit(command);
     }
-  }
-
-  #record(command) {
-    this.history.push(command);
-    if (this.history.length > MAX_HISTORY) {
-      this.history.shift();
-    }
-    this.redoStack = [];
-    this.#emit();
   }
 
   #applyCommand(command) {
@@ -191,11 +201,5 @@ export class AnnotationStore {
 }
 
 export function invertCommand(command) {
-  if (command.type === "add") {
-    return { type: "remove", annotation: cloneAnnotation(command.annotation) };
-  }
-  if (command.type === "remove") {
-    return { type: "add", annotation: cloneAnnotation(command.annotation) };
-  }
-  return { type: "update", before: cloneAnnotation(command.after), after: cloneAnnotation(command.before) };
+  return historyInvertCommand(command);
 }

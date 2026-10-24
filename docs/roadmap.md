@@ -44,6 +44,7 @@ Complete and harden the initial release tools:
 - text highlights based on PDF.js selection rectangles;
 - freehand ink with smoothing/point limits;
 - visual handwritten signatures as ordered local vector strokes, exported as native PDF Ink without cryptographic claims;
+- bounded Command Pattern undo/redo for annotation add/delete/move/resize/text/style/signature operations;
 - notes and basic annotation styling;
 - selecting, moving, resizing where applicable, editing, deleting, and undoing annotation operations.
 

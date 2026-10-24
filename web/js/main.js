@@ -86,8 +86,8 @@ function updateDocumentControls() {
   elements.next.disabled = !hasDocument || currentPage >= currentPageCount;
   elements.deleteSelected.disabled = !hasDocument || !selectedAnnotation;
   elements.duplicateSelected.disabled = !hasDocument || selectedAnnotation?.annotationType !== "Signature";
-  elements.undo.disabled = !hasDocument || !store.history.length;
-  elements.redo.disabled = !hasDocument || !store.redoStack.length;
+  elements.undo.disabled = !hasDocument || !store.canUndo;
+  elements.redo.disabled = !hasDocument || !store.canRedo;
   elements.pageInput.value = currentPage || 0;
   elements.pageInput.max = String(currentPageCount || 1);
   elements.pageCount.textContent = String(currentPageCount);

@@ -116,6 +116,7 @@ The frontend uses native ES modules and should keep modules narrow:
 - `pdfjs-loader.js`: isolates the pinned, same-origin PDF.js runtime and worker configuration.
 - `wasm-bridge.js`: the only module that knows the generated WASM public API and error envelope; it validates JavaScript inputs and owns document disposal.
 - `annotation-model.js`: UI projection of Rust annotation data, stable editor IDs, previews, and completed-command history; no PDF byte mutation.
+- `history.js`: rendering-independent bounded Command Pattern implementation. It stores logical add/remove/update transitions, semantic operation labels, undo/redo branches, defensive clones, and restoration guards; it never stores full PDFs or calls Rust.
 - `annotation-interaction.js`: Pointer Events, pointer capture, keyboard shortcuts, text drafts, selection, drag, resize, highlight selection, and freehand capture.
 - `annotation-overlay.js`: SVG/HTML overlay rendering above PDF.js pages; it renders committed state and transient previews but does not serialize PDFs.
 - `ui/toolbar.js`, `ui/panels.js`, `ui/dialogs.js`: accessible controls and presentation state.
@@ -205,7 +206,7 @@ Expected user mistakes are recoverable and actionable. A malformed or unsupporte
 
 No panic may cross the WASM boundary. Native code may use assertions for impossible programmer invariants, but not for input-controlled values. Logging is opt-in developer diagnostics and must not include document text, file names, or raw PDF bytes by default.
 
-The browser command queue reports failed Rust operations through the status region and restores the inverse local command when possible. A command enters undo history only after its Rust operation resolves successfully; pending pointer previews and failed operations are not history entries. Preview state is discarded on pointer cancellation or Escape. This is a first release policy; a later transactional batch API should make multi-step updates explicitly atomic at the Rust boundary.
+The browser command queue reports failed Rust operations through the status region and restores the inverse local command when possible. A command enters undo history only after its Rust operation resolves successfully; pending pointer previews and failed operations are not history entries. Preview state is discarded on pointer cancellation or Escape. Pointer drag/resize changes are previewed continuously but commit one logical move/resize command on pointer-up. Replacing a document clears both stacks; a new editing session starts with empty history. The bounded default capacity is 200 logical commands and stores annotation transitions, never full PDF copies.
 
 ## 9. Testing strategy
 
@@ -216,7 +217,7 @@ Testing is layered:
 - Property-based tests for coordinate round trips, bounded styles, path simplification, and operation sequencing.
 - Fuzz tests for PDF parsing and annotation command decoding, with strict time/memory/output limits.
 - WASM boundary tests for JSON compatibility, typed errors, byte transfer, and native-vs-WASM parity.
-- Browser tests for local file loading, PDF.js rendering, pointer/keyboard interaction, service-worker cache behavior, and export/download.
+- Browser tests for local file loading, PDF.js rendering, pointer/keyboard interaction, service-worker cache behavior, export/download, and end-to-end undo/redo persistence.
 - Browser annotation coverage must include pen, text commit/edit, highlight selection, selection/move/delete, keyboard cancellation, Rust persistence, and invariant PDF coordinates across zoom and rotation.
 - Accessibility checks for keyboard operation, focus management, labels, contrast, reduced motion, and screen-reader names.
 
@@ -262,4 +263,4 @@ The current `modipdfy-core` engine supports inspection plus native Text/FreeText
 - Supported annotation editor IDs are stored in `/NM`; unsupported existing annotation subtypes are preserved but are not returned by `list_annotations`.
 - Dirty saves of documents containing detected PDF signatures are blocked. Untouched signed inputs can still be returned byte-for-byte.
 - Ink and highlight appearance streams use standard PDF graphics and ExtGState opacity, while text appearances use the standard Helvetica Type1 font. Unicode text is preserved in `/Contents`, but the appearance fallback is limited by the standard font and needs a future embedded-font policy for full glyph coverage.
-- Incremental-update preservation, annotation appearance garbage collection after removal, and operation-history/undo semantics remain future work.
+- Incremental-update preservation and annotation appearance garbage collection after removal remain future work; bounded logical operation history and undo/redo are implemented in the browser session layer.

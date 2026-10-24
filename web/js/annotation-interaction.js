@@ -7,6 +7,7 @@ import {
   makeStyle,
 } from "./annotation-model.js";
 import { pdfBoundsToCssRect } from "./coordinates.js";
+import { CommandOperation } from "./history.js";
 
 const MIN_TEXT_WIDTH = 24;
 const MIN_TEXT_HEIGHT = 18;
@@ -203,7 +204,7 @@ export class AnnotationInteraction {
     const annotation = this.store.get(this.selectedId);
     if (!annotation) return;
     this.setSelected(null);
-    this.store.commitRemove(annotation);
+    this.store.commitRemove(annotation, annotation.annotationType === AnnotationType.SIGNATURE ? CommandOperation.DELETE_SIGNATURE : CommandOperation.DELETE_ANNOTATION);
   }
   duplicateSelected() {
     const annotation = this.selectedId ? this.store.get(this.selectedId) : null;
@@ -211,7 +212,7 @@ export class AnnotationInteraction {
     const duplicate = translateAnnotation(annotation, { x: 12, y: -12 });
     duplicate.editorId = `signature-${createEditorId().slice("editor-".length)}`;
     const clamped = clampToPage(duplicate, this.getPageInfo(annotation.pageIndex));
-    this.store.commitAdd(clamped);
+    this.store.commitAdd(clamped, CommandOperation.ADD_SIGNATURE);
     this.setSelected(clamped.editorId);
   }
 
@@ -220,7 +221,11 @@ export class AnnotationInteraction {
     const result = this.store.undo();
     if (!result) return;
     this.setSelected(result.inverse.annotation?.editorId ?? result.inverse.after?.editorId ?? null);
-    try { await this.#persistCommand(result.inverse, result.command); } catch { /* status and state restoration are handled by the queue */ }
+    try {
+      await this.#persistCommand(result.inverse, result.command);
+    } catch {
+      this.store.restoreUndo(result.command);
+    }
   }
 
   async redo() {
@@ -229,7 +234,6 @@ export class AnnotationInteraction {
     this.setSelected(command.annotation?.editorId ?? command.after?.editorId ?? null);
     try {
       await this.#persistCommand(command, invertCommandForRestore(command));
-      this.store.completeRedo(command);
     } catch {
       this.store.restoreRedo(command);
     }
@@ -247,7 +251,7 @@ export class AnnotationInteraction {
     if (!annotation) return;
     const next = cloneAnnotation(annotation);
     next.style = { ...next.style, ...style, color: style.color ?? next.style.color };
-    this.store.commitUpdate(annotation, next);
+    this.store.commitUpdate(annotation, next, CommandOperation.CHANGE_PROPERTIES);
   }
 
   #pointerDown(event) {
@@ -264,7 +268,7 @@ export class AnnotationInteraction {
         const annotation = signatureAnnotationAt(this.pendingSignature, pageIndex, pagePoint, this.getPageInfo(pageIndex));
         this.pendingSignature = null;
         this.overlay.clearTransient();
-        this.store.commitAdd(annotation);
+        this.store.commitAdd(annotation, CommandOperation.ADD_SIGNATURE);
         this.setSelected(annotation.editorId);
         this.setTool(Tool.SELECT);
       }
@@ -384,7 +388,7 @@ export class AnnotationInteraction {
           style: gesture.style,
           content: { paths: [gesture.points] },
         }, this.getPageInfo(gesture.pageIndex));
-        this.store.commitAdd(annotation);
+        this.store.commitAdd(annotation, CommandOperation.ADD_ANNOTATION);
         this.setSelected(annotation.editorId);
       }
       return;
@@ -392,7 +396,10 @@ export class AnnotationInteraction {
     const current = this.store.get(gesture.original.editorId);
     this.store.clearPreview(gesture.original.editorId);
     if (current && JSON.stringify(current) !== JSON.stringify(gesture.original)) {
-      this.store.commitUpdate(gesture.original, current);
+      const operation = gesture.type === "resize"
+        ? (gesture.original.annotationType === AnnotationType.SIGNATURE ? CommandOperation.RESIZE_SIGNATURE : CommandOperation.RESIZE_ANNOTATION)
+        : (gesture.original.annotationType === AnnotationType.SIGNATURE ? CommandOperation.MOVE_SIGNATURE : CommandOperation.MOVE_ANNOTATION);
+      this.store.commitUpdate(gesture.original, current, operation);
     }
   }
 
@@ -491,9 +498,9 @@ export class AnnotationInteraction {
     annotation.bounds = clampBounds(annotation.bounds, this.getPageInfo(annotation.pageIndex));
     annotation.position = { x: annotation.bounds.left, y: annotation.bounds.top };
     if (this.store.get(annotation.editorId)) {
-      this.store.commitUpdate(draft.annotation, annotation);
+      this.store.commitUpdate(draft.annotation, annotation, CommandOperation.EDIT_TEXT);
     } else {
-      this.store.commitAdd(annotation);
+      this.store.commitAdd(annotation, CommandOperation.ADD_ANNOTATION);
     }
     this.setSelected(annotation.editorId);
   }
@@ -537,7 +544,7 @@ export class AnnotationInteraction {
         style: this.controls.highlightStyle(),
         content: { quads },
       }, this.getPageInfo(pageIndex));
-      this.store.commitAdd(annotation);
+      this.store.commitAdd(annotation, CommandOperation.ADD_ANNOTATION);
       this.setSelected(annotation.editorId);
     }
     selection.removeAllRanges();

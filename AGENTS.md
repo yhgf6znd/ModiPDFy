@@ -7,6 +7,7 @@ This file is permanent guidance for future Codex sessions and contributors. The 
 - Treat [`README.md`](README.md) and the documents in `docs/` as the product and architecture source of truth. Update them when a decision or supported behavior changes; do not silently create a competing design.
 - Preserve the documented browser-only privacy boundary. Do not add a server, remote document path, analytics, telemetry, or runtime CDN dependency.
 - Preserve the documented Rust/PDF, WASM adapter, PDF.js viewer, and vanilla-JavaScript boundaries. The native `modipdfy-core` crate owns the reusable lopdf-backed PDF engine; do not move PDF modification logic into JavaScript or couple the core to browser APIs.
+- Keep logical undo/redo commands in [`web/js/history.js`](web/js/history.js), independent of rendering and PDF bytes. Store bounded annotation state transitions, group pointer gestures at commit time, clear redo on new commits, and clear both stacks when replacing the document/session.
 - Preserve original PDF content and appearance whenever possible. Never flatten an entire page to implement a simple annotation.
 - Treat imported PDFs and document-derived strings as untrusted input. Do not use `unwrap`/`expect` on input-controlled values in production paths; enforce resource limits and return typed errors.
 - Review every dependency and bundled asset for permissive licensing, native/WASM compatibility, network behavior, and unnecessary surface area.
