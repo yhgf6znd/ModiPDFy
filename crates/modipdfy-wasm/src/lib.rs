@@ -4,7 +4,7 @@ use js_sys::{Array, Object, Reflect};
 use modipdfy_core::{
     Annotation, AnnotationContent, AnnotationId, AnnotationStyle, HighlightAnnotation,
     InkAnnotation, MAX_HIGHLIGHT_QUADS, MAX_INK_POINTS, PageInfo, PdfColor, PdfDocument, PdfError,
-    PdfPoint, PdfQuad, PdfRectangle, TextAnnotation,
+    PdfPoint, PdfQuad, PdfRectangle, SignatureAnnotation, SignatureStroke, TextAnnotation,
 };
 use wasm_bindgen::prelude::*;
 
@@ -165,7 +165,7 @@ impl ModiPdfDocument {
         bounds_bottom: f64,
         bounds_right: f64,
         bounds_top: f64,
-        paths: JsValue,
+        strokes: JsValue,
         color_red: f64,
         color_green: f64,
         color_blue: f64,
@@ -173,8 +173,10 @@ impl ModiPdfDocument {
         stroke_width: f64,
         font_size: f64,
     ) -> Result<String, JsValue> {
-        let paths = parse_paths(&paths)?;
-        let annotation = InkAnnotation {
+        let style =
+            wire_style(color_red, color_green, color_blue, opacity, stroke_width, font_size);
+        let strokes = parse_signature_strokes(&strokes, style)?;
+        let annotation = SignatureAnnotation {
             editor_id: AnnotationId::new(editor_id).map_err(pdf_error)?,
             page_index: page_index as usize,
             position: PdfPoint { x: position_x, y: position_y },
@@ -184,8 +186,8 @@ impl ModiPdfDocument {
                 right: bounds_right,
                 top: bounds_top,
             },
-            style: wire_style(color_red, color_green, color_blue, opacity, stroke_width, font_size),
-            paths,
+            style,
+            strokes,
         };
         let id = self.document_mut()?.add_signature_annotation(annotation).map_err(pdf_error)?;
         Ok(id.to_string())
@@ -415,6 +417,66 @@ fn parse_paths(value: &JsValue) -> Result<Vec<Vec<PdfPoint>>, JsValue> {
     Ok(result)
 }
 
+fn parse_signature_strokes(
+    value: &JsValue,
+    fallback: AnnotationStyle,
+) -> Result<Vec<SignatureStroke>, JsValue> {
+    if !Array::is_array(value) {
+        return Err(invalid_annotation("signature strokes must be an array"));
+    }
+    Array::from(value)
+        .iter()
+        .map(|stroke| {
+            let points_value = Reflect::get(&stroke, &JsValue::from_str("points"))
+                .map_err(|_| invalid_annotation("signature stroke points are unreadable"))?;
+            if !Array::is_array(&points_value) {
+                return Err(invalid_annotation("signature stroke points must be an array"));
+            }
+            let points = Array::from(&points_value)
+                .iter()
+                .map(|point| point_from_js(&point))
+                .collect::<Result<Vec<_>, _>>()?;
+            if points.len() < 2 {
+                return Err(invalid_annotation(
+                    "signature strokes must contain at least two points",
+                ));
+            }
+            let color = if let Ok(value) = Reflect::get(&stroke, &JsValue::from_str("color")) {
+                PdfColor {
+                    red: number_property(&value, "red")?,
+                    green: number_property(&value, "green")?,
+                    blue: number_property(&value, "blue")?,
+                }
+            } else {
+                fallback.color
+            };
+            let stroke_width = match Reflect::get(&stroke, &JsValue::from_str("strokeWidth")) {
+                Ok(value) => value
+                    .as_f64()
+                    .filter(|value| value.is_finite())
+                    .ok_or_else(|| invalid_annotation("signature stroke width must be finite"))?,
+                Err(_) => fallback.stroke_width,
+            };
+            let opacity = match Reflect::get(&stroke, &JsValue::from_str("opacity")) {
+                Ok(value) => value
+                    .as_f64()
+                    .filter(|value| value.is_finite())
+                    .ok_or_else(|| invalid_annotation("signature stroke opacity must be finite"))?,
+                Err(_) => fallback.opacity,
+            };
+            Ok(SignatureStroke {
+                points,
+                style: AnnotationStyle {
+                    color,
+                    opacity,
+                    stroke_width,
+                    font_size: fallback.font_size,
+                },
+            })
+        })
+        .collect()
+}
+
 fn parse_quads(value: &JsValue) -> Result<Vec<PdfQuad>, JsValue> {
     if !Array::is_array(value) {
         return Err(invalid_annotation("highlight quads must be an array"));
@@ -514,7 +576,7 @@ fn annotation_js(annotation: &Annotation) -> Result<JsValue, JsValue> {
         AnnotationContent::Text { text } => {
             set_property(&content, "text", &JsValue::from_str(text))?;
         }
-        AnnotationContent::Ink { paths } | AnnotationContent::Signature { paths } => {
+        AnnotationContent::Ink { paths } => {
             let path_array = Array::new();
             for path in paths {
                 let points = Array::new();
@@ -525,6 +587,34 @@ fn annotation_js(annotation: &Annotation) -> Result<JsValue, JsValue> {
             }
             let value: JsValue = path_array.into();
             set_property(&content, "paths", &value)?;
+        }
+        AnnotationContent::Signature { strokes } => {
+            let stroke_array = Array::new();
+            let path_array = Array::new();
+            for stroke in strokes {
+                let points = Array::new();
+                for point in &stroke.points {
+                    points.push(&point_js(*point)?);
+                }
+                let item = Object::new();
+                let points_value: JsValue = points.clone().into();
+                set_property(&item, "points", &points_value)?;
+                let style = style_js(stroke.style)?;
+                let color = Reflect::get(&style, &JsValue::from_str("color"))
+                    .map_err(|_| invalid_annotation("signature style is unreadable"))?;
+                set_property(&item, "color", &color)?;
+                for key in ["strokeWidth", "opacity", "fontSize"] {
+                    let value = Reflect::get(&style, &JsValue::from_str(key))
+                        .map_err(|_| invalid_annotation("signature style is unreadable"))?;
+                    set_property(&item, key, &value)?;
+                }
+                stroke_array.push(&item);
+                path_array.push(&points_value);
+            }
+            let strokes_value: JsValue = stroke_array.into();
+            let paths_value: JsValue = path_array.into();
+            set_property(&content, "strokes", &strokes_value)?;
+            set_property(&content, "paths", &paths_value)?;
         }
         AnnotationContent::Highlight { quads } => {
             let quad_array = Array::new();

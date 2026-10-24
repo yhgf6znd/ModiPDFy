@@ -16,6 +16,9 @@
     <main>
       <h1>ModiPDFy annotation interaction tests</h1>
       <p id="result" role="status">Running…</p>
+      <canvas id="signature-canvas" width="420" height="160" style="width:420px;height:160px;background:white"></canvas>
+      <input id="signature-color" type="color" value="#254b87">
+      <input id="signature-width" type="range" min="1" max="20" value="3">
       <div id="viewer"><div id="pages"></div></div>
     </main>
     <script type="module" src="./annotations.test.js"></script>

@@ -7,10 +7,11 @@ The initial release is intentionally focused:
 - view existing PDFs;
 - add, move, edit, and remove Text, Ink, and Highlight annotations;
 - highlight selectable PDF text;
-- draw freehand marks with mouse, pen, or touch pointer events; and
+- draw freehand marks with mouse, pen, or touch pointer events;
+- create reusable visual handwritten signatures with mouse, pen, or touch input; and
 - export a modified PDF without uploading the source document.
 
-Editing existing PDF text and images, compression, OCR, and cryptographic signatures are future work. The current release slice provides a native object-preserving Text/FreeText, Ink, and Highlight engine, a browser editing overlay, selection/move/resize/delete interactions, keyboard shortcuts, and local export. Handwritten signature UX, notes, richer undo/redo integration, and independent-reader regression coverage remain on the roadmap.
+Editing existing PDF text and images, compression, OCR, and cryptographic signatures are future work. The current release slice provides a native object-preserving Text/FreeText, Ink, Highlight, and visual Signature-as-Ink engine, a browser editing overlay, selection/move/resize/delete interactions, keyboard shortcuts, and local export. Notes, richer undo/redo integration, and independent-reader regression coverage remain on the roadmap.
 
 ## Architecture at a glance
 
@@ -62,4 +63,4 @@ The application has no document server. A release must not send PDF bytes, annot
 
 ## Status
 
-Initial Rust/WASM and framework-free web viewer with a native lopdf-backed document engine and browser annotation tools for Text, Ink, and Highlight PDFs.
+Initial Rust/WASM and framework-free web viewer with a native lopdf-backed document engine and browser annotation tools for Text, Ink, Highlight, and visual Signature PDFs.

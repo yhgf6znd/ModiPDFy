@@ -150,6 +150,24 @@ pub struct InkAnnotation {
     pub paths: Vec<Vec<PdfPoint>>,
 }
 
+/// One ordered signature stroke with its own visual style.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SignatureStroke {
+    pub points: Vec<PdfPoint>,
+    pub style: AnnotationStyle,
+}
+
+/// A visual handwritten signature serialized as one native PDF Ink annotation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SignatureAnnotation {
+    pub editor_id: AnnotationId,
+    pub page_index: usize,
+    pub position: PdfPoint,
+    pub bounds: PdfRectangle,
+    pub style: AnnotationStyle,
+    pub strokes: Vec<SignatureStroke>,
+}
+
 /// Highlight annotation input. Quad points use PDF order: top-left, top-right,
 /// bottom-left, bottom-right.
 #[derive(Debug, Clone, PartialEq)]
@@ -176,7 +194,7 @@ pub enum AnnotationType {
 pub enum AnnotationContent {
     Text { text: String },
     Ink { paths: Vec<Vec<PdfPoint>> },
-    Signature { paths: Vec<Vec<PdfPoint>> },
+    Signature { strokes: Vec<SignatureStroke> },
     Highlight { quads: Vec<PdfQuad> },
 }
 
@@ -237,6 +255,34 @@ pub(crate) fn validate_ink(annotation: &InkAnnotation, page: &PageInfo) -> PdfRe
     }
     for path in &annotation.paths {
         for point in path {
+            validate_point_in_bounds(*point, annotation.bounds, page)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_signature(
+    annotation: &SignatureAnnotation,
+    page: &PageInfo,
+) -> PdfResult<()> {
+    validate_common(
+        &annotation.editor_id,
+        annotation.page_index,
+        annotation.position,
+        annotation.bounds,
+        annotation.style,
+        page,
+    )?;
+    let point_count = annotation.strokes.iter().map(|stroke| stroke.points.len()).sum::<usize>();
+    if annotation.strokes.is_empty()
+        || point_count > MAX_INK_POINTS
+        || annotation.strokes.iter().any(|stroke| stroke.points.len() < 2)
+    {
+        return Err(PdfError::InvalidAnnotationContent { message: "signature must contain strokes with at least two points and stay within the point limit".to_string() });
+    }
+    for stroke in &annotation.strokes {
+        stroke.style.validate()?;
+        for point in &stroke.points {
             validate_point_in_bounds(*point, annotation.bounds, page)?;
         }
     }
@@ -384,6 +430,33 @@ pub(crate) fn build_ink_object(
     .into()
 }
 
+pub(crate) fn build_signature_object(
+    document: &mut Document,
+    annotation: &SignatureAnnotation,
+    page_id: ObjectId,
+) -> Object {
+    let appearance_id = add_signature_appearance(document, annotation);
+    dictionary! {
+        "Type" => "Annot",
+        "Subtype" => "Ink",
+        "Rect" => rectangle_object(annotation.bounds),
+        "NM" => text_string(annotation.editor_id.as_str()),
+        "P" => page_id,
+        "F" => 4,
+        "C" => color_object(annotation.style.color),
+        "CA" => annotation.style.opacity,
+        "BS" => dictionary! { "W" => annotation.style.stroke_width },
+        "InkList" => annotation.strokes.iter().map(|stroke| Object::Array(stroke.points.iter().flat_map(|point| [point.x.into(), point.y.into()]).collect())).collect::<Vec<_>>(),
+        "MPDFyStrokeStyles" => annotation.strokes.iter().map(|stroke| Object::Dictionary(dictionary! {
+            "C" => color_object(stroke.style.color),
+            "W" => stroke.style.stroke_width,
+            "CA" => stroke.style.opacity,
+        })).collect::<Vec<_>>(),
+        "AP" => dictionary! { "N" => appearance_id },
+    }
+    .into()
+}
+
 pub(crate) fn build_highlight_object(
     document: &mut Document,
     annotation: &HighlightAnnotation,
@@ -503,6 +576,59 @@ fn add_ink_appearance(document: &mut Document, annotation: &InkAnnotation) -> Ob
     document.add_object(stream)
 }
 
+fn add_signature_appearance(document: &mut Document, annotation: &SignatureAnnotation) -> ObjectId {
+    let bounds = annotation.bounds;
+    let graphics_state_ids = annotation
+        .strokes
+        .iter()
+        .map(|stroke| add_opacity_state(document, stroke.style.opacity))
+        .collect::<Vec<_>>();
+    let mut content = String::from("q ");
+    for (stroke, graphics_state_id) in annotation.strokes.iter().zip(&graphics_state_ids) {
+        content.push_str(&format!(
+            "/GS{} gs {} {} {} RG {} w 1 J 1 j ",
+            graphics_state_id.0,
+            number(stroke.style.color.red),
+            number(stroke.style.color.green),
+            number(stroke.style.color.blue),
+            number(stroke.style.stroke_width)
+        ));
+        if let Some(first) = stroke.points.first() {
+            content.push_str(&format!(
+                "{} {} m ",
+                number(first.x - bounds.left),
+                number(first.y - bounds.bottom)
+            ));
+            for point in &stroke.points[1..] {
+                content.push_str(&format!(
+                    "{} {} l ",
+                    number(point.x - bounds.left),
+                    number(point.y - bounds.bottom)
+                ));
+            }
+            content.push_str("S ");
+        }
+    }
+    content.push('Q');
+    let resources =
+        graphics_state_ids.iter().map(|id| (format!("GS{}", id.0), *id)).collect::<Vec<_>>();
+    let resource_dictionary =
+        resources.into_iter().fold(Dictionary::new(), |mut dictionary, (name, id)| {
+            dictionary.set(name, id);
+            dictionary
+        });
+    let stream = Stream::new(
+        dictionary! {
+            "Type" => "XObject",
+            "Subtype" => "Form",
+            "BBox" => vec![0.into(), 0.into(), bounds.width().into(), bounds.height().into()],
+            "Resources" => dictionary! { "ExtGState" => resource_dictionary },
+        },
+        content.into_bytes(),
+    );
+    document.add_object(stream)
+}
+
 fn add_highlight_appearance(document: &mut Document, annotation: &HighlightAnnotation) -> ObjectId {
     let bounds = annotation.bounds;
     let color = annotation.style.color;
@@ -596,7 +722,14 @@ pub(crate) fn parse_annotation(
                 .copied()
                 .unwrap_or(PdfPoint { x: bounds.left, y: bounds.bottom });
             let content = if annotation_type == AnnotationType::Signature {
-                AnnotationContent::Signature { paths }
+                let styles = parse_signature_styles(document, dictionary, paths.len(), style)?;
+                AnnotationContent::Signature {
+                    strokes: paths
+                        .into_iter()
+                        .zip(styles)
+                        .map(|(points, style)| SignatureStroke { points, style })
+                        .collect(),
+                }
             } else {
                 AnnotationContent::Ink { paths }
             };
@@ -706,6 +839,61 @@ fn parse_style(
     let style = AnnotationStyle { color, opacity, stroke_width, font_size };
     style.validate()?;
     Ok(style)
+}
+
+fn parse_signature_styles(
+    document: &Document,
+    dictionary: &Dictionary,
+    stroke_count: usize,
+    fallback: AnnotationStyle,
+) -> PdfResult<Vec<AnnotationStyle>> {
+    let Some(object) = dictionary.get(b"MPDFyStrokeStyles").ok() else {
+        return Ok(vec![fallback; stroke_count]);
+    };
+    let object = document
+        .dereference(object)
+        .map_err(|_| PdfError::AnnotationParse {
+            message: "signature stroke styles could not be dereferenced".to_string(),
+        })?
+        .1;
+    let entries = object.as_array().map_err(|_| PdfError::AnnotationParse {
+        message: "signature stroke styles are not an array".to_string(),
+    })?;
+    if entries.len() != stroke_count {
+        return Ok(vec![fallback; stroke_count]);
+    }
+    entries
+        .iter()
+        .map(|entry| {
+            let entry = document
+                .dereference(entry)
+                .map_err(|_| PdfError::AnnotationParse {
+                    message: "signature stroke style could not be dereferenced".to_string(),
+                })?
+                .1;
+            let entry = entry.as_dict().map_err(|_| PdfError::AnnotationParse {
+                message: "signature stroke style is not a dictionary".to_string(),
+            })?;
+            let color =
+                entry.get(b"C").ok().map(parse_color).transpose()?.unwrap_or(fallback.color);
+            let opacity = entry
+                .get(b"CA")
+                .ok()
+                .and_then(|value| value.as_float().ok())
+                .map(f64::from)
+                .unwrap_or(fallback.opacity);
+            let stroke_width = entry
+                .get(b"W")
+                .ok()
+                .and_then(|value| value.as_float().ok())
+                .map(f64::from)
+                .unwrap_or(fallback.stroke_width);
+            let style =
+                AnnotationStyle { color, opacity, stroke_width, font_size: fallback.font_size };
+            style.validate()?;
+            Ok(style)
+        })
+        .collect()
 }
 
 fn parse_color(object: &Object) -> PdfResult<PdfColor> {

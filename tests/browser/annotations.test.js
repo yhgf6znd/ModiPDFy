@@ -3,6 +3,7 @@ import { AnnotationInteraction } from "../../web/js/annotation-interaction.js";
 import { AnnotationStore, Tool } from "../../web/js/annotation-model.js";
 import { PdfViewer } from "../../web/js/pdf-viewer.js";
 import { openPdfDocument } from "../../web/js/wasm-bridge.js";
+import { SignaturePad } from "../../web/js/signature-pad.js";
 import { createPdfFixture } from "./pdf-fixture.js";
 
 const result = document.querySelector("#result");
@@ -44,7 +45,7 @@ async function waitFor(predicate, message, timeout = 1000) {
 }
 
 function pointer(type, target, x, y, pointerId = 1, pointerType = "pen") {
-  target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId, pointerType, button: 0 }));
+  target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId, pointerType, isPrimary: true, button: 0 }));
 }
 
 function stagePoint(stage, x, y) {
@@ -60,6 +61,64 @@ async function run() {
   await new Promise((resolve) => setTimeout(resolve, 80));
   const page = document.querySelector(".pdf-page");
   const stage = page.querySelector(".page-stage");
+  const signaturePad = new SignaturePad({
+    canvas: document.querySelector("#signature-canvas"),
+    colorInput: document.querySelector("#signature-color"),
+    widthInput: document.querySelector("#signature-width"),
+  });
+  const signatureCanvas = document.querySelector("#signature-canvas");
+  pointer("pointerdown", signatureCanvas, 20, 40, 31, "mouse");
+  pointer("pointermove", signatureCanvas, 80, 70, 31, "mouse");
+  pointer("pointerup", signatureCanvas, 140, 35, 31, "mouse");
+  document.querySelector("#signature-color").value = "#aa2233";
+  pointer("pointerdown", signatureCanvas, 170, 80, 32, "touch");
+  pointer("pointermove", signatureCanvas, 220, 50, 32, "touch");
+  pointer("pointerup", signatureCanvas, 280, 85, 32, "touch");
+  pointer("pointerdown", signatureCanvas, 300, 30, 36, "pen");
+  pointer("pointermove", signatureCanvas, 340, 65, 36, "pen");
+  pointer("pointerup", signatureCanvas, 390, 25, 36, "pen");
+  const signature = signaturePad.toSignature();
+  assert(signature?.strokes.length === 3 && signature.paths.length === 3, "signature pad did not preserve ordered vector strokes");
+  assert(signature.strokes[1].color.red > signature.strokes[0].color.red, "signature stroke color was not captured");
+  interaction.beginSignaturePlacement(signature);
+  const signaturePoint = stagePoint(stage, 180, 140);
+  pointer("pointermove", stage, signaturePoint.x, signaturePoint.y, 33, "mouse");
+  assert(document.querySelector(".interaction-preview"), "signature placement preview was not rendered");
+  pointer("pointerdown", stage, signaturePoint.x, signaturePoint.y, 33, "mouse");
+  await interaction.flush();
+  const placedSignature = store.values().find((annotation) => annotation.annotationType === "Signature");
+  assert(placedSignature, "signature placement did not create an annotation");
+  await waitFor(() => documentHandle.listAnnotations().some((annotation) => annotation.annotationType === "Signature"), "signature was not persisted");
+  const originalSignatureBounds = { ...placedSignature.bounds };
+  const signaturePath = document.querySelector(`[data-editor-id="${placedSignature.editorId}"]`);
+  pointer("pointerdown", signaturePath, signaturePoint.x, signaturePoint.y, 34, "mouse");
+  pointer("pointermove", document.querySelector("#pages"), signaturePoint.x + 20, signaturePoint.y + 12, 34, "mouse");
+  pointer("pointerup", document.querySelector("#pages"), signaturePoint.x + 20, signaturePoint.y + 12, 34, "mouse");
+  await interaction.flush();
+  assert(documentHandle.listAnnotations().find((annotation) => annotation.editorId === placedSignature.editorId).bounds.left !== originalSignatureBounds.left, "signature drag did not move the annotation");
+  const selectionHandle = document.querySelector(`[data-resize-id="${placedSignature.editorId}"]`);
+  const movedSignature = documentHandle.listAnnotations().find((annotation) => annotation.editorId === placedSignature.editorId);
+  const ratio = (movedSignature.bounds.right - movedSignature.bounds.left) / (movedSignature.bounds.top - movedSignature.bounds.bottom);
+  const handlePoint = stagePoint(stage, 300, 250);
+  pointer("pointerdown", selectionHandle, handlePoint.x, handlePoint.y, 35, "mouse");
+  pointer("pointermove", document.querySelector("#pages"), handlePoint.x + 60, handlePoint.y + 40, 35, "mouse");
+  pointer("pointerup", document.querySelector("#pages"), handlePoint.x + 60, handlePoint.y + 40, 35, "mouse");
+  await interaction.flush();
+  const resizedSignature = documentHandle.listAnnotations().find((annotation) => annotation.editorId === placedSignature.editorId);
+  const resizedRatio = (resizedSignature.bounds.right - resizedSignature.bounds.left) / (resizedSignature.bounds.top - resizedSignature.bounds.bottom);
+  assert(Math.abs(resizedRatio - ratio) < 0.05, "signature resize was not proportional");
+  interaction.setSelected(placedSignature.editorId);
+  interaction.duplicateSelected();
+  await interaction.flush();
+  assert(documentHandle.listAnnotations().filter((annotation) => annotation.annotationType === "Signature").length === 2, "signature duplicate did not persist");
+  await interaction.deleteSelected();
+  await interaction.flush();
+  assert(documentHandle.listAnnotations().filter((annotation) => annotation.annotationType === "Signature").length === 1, "signature delete did not persist");
+  const exported = documentHandle.save();
+  const reopenedSignatureDocument = await openPdfDocument(exported);
+  assert(reopenedSignatureDocument.listAnnotations().filter((annotation) => annotation.annotationType === "Signature").length === 1, "exported signatures did not reopen");
+  reopenedSignatureDocument.dispose();
+  const historyBeforePen = store.history.length;
   interaction.setTool(Tool.PEN);
   const penStart = stagePoint(stage, 2, 2);
   const penMiddle = stagePoint(stage, 15, 8);
@@ -71,7 +130,7 @@ async function run() {
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert(store.values().some((annotation) => annotation.annotationType === "Ink"), "pen gesture did not create ink");
   await waitFor(() => documentHandle.listAnnotations().some((annotation) => annotation.annotationType === "Ink"), "pen annotation was not persisted");
-  assert(store.history.length === 1, "completed pen command was not recorded in history");
+  assert(store.history.length === historyBeforePen + 1, "completed pen command was not recorded in history");
   const ink = store.values()[0];
   const inkPdf = documentHandle.listAnnotations().find((annotation) => annotation.annotationType === "Ink");
   const cropBox = documentHandle.pageInfo(0).cropBox;

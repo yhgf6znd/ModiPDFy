@@ -4,6 +4,8 @@ import { AnnotationStore, Tool, makeStyle } from "./annotation-model.js";
 import { PdfViewer } from "./pdf-viewer.js";
 import { colorFromHex } from "./annotation-interaction.js";
 import { loadWasm, openPdfDocument } from "./wasm-client.js";
+import { SignaturePad } from "./signature-pad.js";
+import { deleteStoredSignature, listStoredSignatures, saveStoredSignature } from "./signature-storage.js";
 
 const elements = {
   fileInput: document.querySelector("#file-input"),
@@ -26,10 +28,21 @@ const elements = {
   width: document.querySelector("#annotation-width"),
   fontSize: document.querySelector("#annotation-font-size"),
   deleteSelected: document.querySelector("#delete-selected"),
+  duplicateSelected: document.querySelector("#duplicate-selected"),
+  createSignature: document.querySelector("#create-signature"),
   undo: document.querySelector("#undo"),
   redo: document.querySelector("#redo"),
   exportPdf: document.querySelector("#export-pdf"),
   toolButtons: [...document.querySelectorAll("[data-tool]")],
+  signatureDialog: document.querySelector("#signature-dialog"),
+  signatureCanvas: document.querySelector("#signature-canvas"),
+  signatureColor: document.querySelector("#signature-color"),
+  signatureStrokeWidth: document.querySelector("#signature-stroke-width"),
+  signatureClear: document.querySelector("#signature-clear"),
+  signatureCancel: document.querySelector("#signature-cancel"),
+  signatureSaved: document.querySelector("#signature-saved"),
+  signatureSaveLocal: document.querySelector("#signature-save-local"),
+  signatureDeleteSaved: document.querySelector("#signature-delete-saved"),
 };
 
 let currentPageCount = 0;
@@ -38,6 +51,8 @@ let documentHandle = null;
 let selectedAnnotation = null;
 let overlay;
 let interaction;
+let signaturePad;
+let storedSignatures = [];
 
 function setStatus(message, state = "ready") {
   elements.status.textContent = message;
@@ -55,6 +70,8 @@ function updateDocumentControls() {
     elements.fitWidth,
     elements.fitPage,
     elements.deleteSelected,
+    elements.duplicateSelected,
+    elements.createSignature,
     elements.undo,
     elements.redo,
     elements.exportPdf,
@@ -68,6 +85,7 @@ function updateDocumentControls() {
   elements.previous.disabled = !hasDocument || currentPage <= 1;
   elements.next.disabled = !hasDocument || currentPage >= currentPageCount;
   elements.deleteSelected.disabled = !hasDocument || !selectedAnnotation;
+  elements.duplicateSelected.disabled = !hasDocument || selectedAnnotation?.annotationType !== "Signature";
   elements.undo.disabled = !hasDocument || !store.history.length;
   elements.redo.disabled = !hasDocument || !store.redoStack.length;
   elements.pageInput.value = currentPage || 0;
@@ -125,6 +143,7 @@ const viewer = new PdfViewer({
 });
 
 overlay = new AnnotationOverlay({ viewer, store });
+signaturePad = new SignaturePad({ canvas: elements.signatureCanvas, colorInput: elements.signatureColor, widthInput: elements.signatureStrokeWidth });
 interaction = new AnnotationInteraction({
   viewer,
   pagesElement: elements.pages,
@@ -197,6 +216,49 @@ async function exportPdf() {
   }
 }
 
+async function refreshStoredSignatures() {
+  try {
+    storedSignatures = await listStoredSignatures();
+    elements.signatureSaved.replaceChildren(new Option("None", ""));
+    for (const signature of storedSignatures) {
+      elements.signatureSaved.append(new Option(signature.name || "Saved signature", signature.id));
+    }
+    elements.signatureDeleteSaved.disabled = !elements.signatureSaved.value;
+  } catch (error) {
+    storedSignatures = [];
+    setStatus(error instanceof Error ? error.message : "Local signature storage is unavailable.", "error");
+  }
+}
+
+function openSignatureDialog() {
+  signaturePad.clear();
+  elements.signatureSaveLocal.checked = false;
+  elements.signatureSaved.value = "";
+  elements.signatureDeleteSaved.disabled = true;
+  if (typeof elements.signatureDialog.showModal === "function") elements.signatureDialog.showModal();
+  else elements.signatureDialog.setAttribute("open", "");
+  void refreshStoredSignatures();
+}
+
+async function confirmSignature() {
+  const signature = signaturePad.toSignature();
+  if (!signature) {
+    setStatus("Draw a signature with at least one complete stroke.", "error");
+    return;
+  }
+  if (elements.signatureSaveLocal.checked) {
+    const id = `saved-signature-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
+    try {
+      await saveStoredSignature({ id, name: `Signature ${storedSignatures.length + 1}`, ...signature });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The signature could not be saved locally.", "error");
+      return;
+    }
+  }
+  elements.signatureDialog.close();
+  interaction.beginSignaturePlacement(signature);
+}
+
 elements.fileInput.addEventListener("change", () => {
   void openFile(elements.fileInput.files?.[0]);
   elements.fileInput.value = "";
@@ -224,6 +286,29 @@ elements.zoomIn.addEventListener("click", () => void viewer.zoomIn());
 elements.fitWidth.addEventListener("click", () => void viewer.fitWidth());
 elements.fitPage.addEventListener("click", () => void viewer.fitPage());
 elements.deleteSelected.addEventListener("click", () => void interaction.deleteSelected());
+elements.duplicateSelected.addEventListener("click", () => interaction.duplicateSelected());
+elements.createSignature.addEventListener("click", openSignatureDialog);
+elements.signatureClear.addEventListener("click", () => signaturePad.clear());
+elements.signatureCancel.addEventListener("click", () => interaction.cancelSignaturePlacement());
+elements.signatureDialog.addEventListener("close", () => interaction.cancelSignaturePlacement());
+elements.signatureSaved.addEventListener("change", () => {
+  const signature = storedSignatures.find((item) => item.id === elements.signatureSaved.value);
+  elements.signatureDeleteSaved.disabled = !signature;
+  if (signature) signaturePad.load(signature);
+});
+elements.signatureDeleteSaved.addEventListener("click", async () => {
+  if (!elements.signatureSaved.value) return;
+  try {
+    await deleteStoredSignature(elements.signatureSaved.value);
+    await refreshStoredSignatures();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "The saved signature could not be deleted.", "error");
+  }
+});
+elements.signatureDialog.querySelector("form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  void confirmSignature();
+});
 elements.undo.addEventListener("click", () => void interaction.undo());
 elements.redo.addEventListener("click", () => void interaction.redo());
 elements.exportPdf.addEventListener("click", () => void exportPdf());
@@ -243,7 +328,7 @@ elements.color.addEventListener("change", () => {
   if (selectedAnnotation) interaction.updateSelectedStyle({ color: colorFromHex(elements.color.value) });
 });
 elements.width.addEventListener("change", () => {
-  if (selectedAnnotation && selectedAnnotation.annotationType === "Ink") interaction.updateSelectedStyle({ strokeWidth: Number(elements.width.value) });
+  if (selectedAnnotation && ["Ink", "Signature"].includes(selectedAnnotation.annotationType)) interaction.updateSelectedStyle({ strokeWidth: Number(elements.width.value) });
 });
 elements.fontSize.addEventListener("change", () => {
   if (selectedAnnotation && selectedAnnotation.annotationType === "Text") interaction.updateSelectedStyle({ fontSize: Number(elements.fontSize.value) });

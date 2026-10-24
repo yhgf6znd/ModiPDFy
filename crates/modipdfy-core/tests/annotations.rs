@@ -1,7 +1,8 @@
 use lopdf::{Document, Object, Stream, dictionary};
 use modipdfy_core::{
     AnnotationContent, AnnotationId, AnnotationStyle, HighlightAnnotation, InkAnnotation, PdfColor,
-    PdfDocument, PdfError, PdfPoint, PdfQuad, PdfRectangle, TextAnnotation,
+    PdfDocument, PdfError, PdfPoint, PdfQuad, PdfRectangle, SignatureAnnotation, SignatureStroke,
+    TextAnnotation,
 };
 
 fn annotation_fixture(include_signature: bool) -> Vec<u8> {
@@ -280,21 +281,50 @@ fn visual_signature_is_native_ink_and_preserves_page_content() {
         raw.get_page_content(page_id)
     };
     let mut document = PdfDocument::from_bytes(&source).expect("fixture loads");
-    let mut signature = ink_annotation();
-    signature.editor_id = AnnotationId::new("signature-1").expect("valid signature id");
+    let mut ink = ink_annotation();
+    ink.editor_id = AnnotationId::new("signature-1").expect("valid signature id");
+    let signature = SignatureAnnotation {
+        editor_id: ink.editor_id,
+        page_index: ink.page_index,
+        position: ink.position,
+        bounds: ink.bounds,
+        style: ink.style,
+        strokes: vec![
+            SignatureStroke { points: ink.paths[0].clone(), style: ink.style },
+            SignatureStroke {
+                points: vec![
+                    PdfPoint { x: 65.0, y: 85.0 },
+                    PdfPoint { x: 85.0, y: 105.0 },
+                    PdfPoint { x: 95.0, y: 95.0 },
+                ],
+                style: AnnotationStyle {
+                    color: PdfColor { red: 0.8, green: 0.1, blue: 0.2 },
+                    stroke_width: 5.0,
+                    ..ink.style
+                },
+            },
+        ],
+    };
     document.add_signature_annotation(signature).expect("signature adds");
 
     let listed = document.list_annotations().expect("signature lists");
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].annotation_type, modipdfy_core::AnnotationType::Signature);
-    assert!(matches!(listed[0].content, AnnotationContent::Signature { .. }));
+    match &listed[0].content {
+        AnnotationContent::Signature { strokes } => {
+            assert_eq!(strokes.len(), 2);
+            assert_eq!(strokes[1].style.stroke_width, 5.0);
+            assert!((strokes[1].style.color.red - 0.8).abs() < 0.001);
+        }
+        other => panic!("expected signature content, got {other:?}"),
+    }
 
     let saved = document.save_to_bytes().expect("signature saves");
     let reopened_core = PdfDocument::from_bytes(&saved).expect("signature reopens");
-    assert!(matches!(
-        reopened_core.list_annotations().expect("reopened signature")[0].content,
-        AnnotationContent::Signature { .. }
-    ));
+    match &reopened_core.list_annotations().expect("reopened signature")[0].content {
+        AnnotationContent::Signature { strokes } => assert_eq!(strokes[1].style.stroke_width, 5.0),
+        other => panic!("expected reopened signature content, got {other:?}"),
+    }
     let reopened = Document::load_mem(&saved).expect("saved PDF reopens");
     let page_id = reopened.get_pages().get(&1).copied().expect("page id");
     let entries = reopened

@@ -58,6 +58,9 @@ function translateAnnotation(annotation, delta) {
   };
   if (next.annotationType === AnnotationType.INK || next.annotationType === AnnotationType.SIGNATURE) {
     next.content.paths = next.content.paths.map((path) => path.map((point) => ({ x: point.x + delta.x, y: point.y + delta.y })));
+    if (next.annotationType === AnnotationType.SIGNATURE && next.content.strokes) {
+      next.content.strokes = next.content.strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ x: point.x + delta.x, y: point.y + delta.y })) }));
+    }
   } else if (next.annotationType === AnnotationType.HIGHLIGHT) {
     next.content.quads = next.content.quads.map((quad) => Object.fromEntries(Object.entries(quad).map(([key, point]) => [key, { x: point.x + delta.x, y: point.y + delta.y }])));
   }
@@ -68,13 +71,16 @@ function resizeAnnotation(annotation, newBounds) {
   const next = cloneAnnotation(annotation);
   next.position = mapPoint(annotation.position, annotation.bounds, newBounds);
   next.bounds = newBounds;
+  const scaleX = (newBounds.right - newBounds.left) / Math.max(annotation.bounds.right - annotation.bounds.left, 0.0001);
+  const scaleY = (newBounds.top - newBounds.bottom) / Math.max(annotation.bounds.top - annotation.bounds.bottom, 0.0001);
   if (next.annotationType === AnnotationType.SIGNATURE) {
-    const scaleX = (newBounds.right - newBounds.left) / Math.max(annotation.bounds.right - annotation.bounds.left, 0.0001);
-    const scaleY = (newBounds.top - newBounds.bottom) / Math.max(annotation.bounds.top - annotation.bounds.bottom, 0.0001);
     next.style.strokeWidth = annotation.style.strokeWidth * Math.min(scaleX, scaleY);
   }
   if (next.annotationType === AnnotationType.INK || next.annotationType === AnnotationType.SIGNATURE) {
     next.content.paths = next.content.paths.map((path) => path.map((point) => mapPoint(point, annotation.bounds, newBounds)));
+    if (next.annotationType === AnnotationType.SIGNATURE && next.content.strokes) {
+      next.content.strokes = next.content.strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => mapPoint(point, annotation.bounds, newBounds)), strokeWidth: stroke.strokeWidth * Math.min(scaleX, scaleY) }));
+    }
   } else if (next.annotationType === AnnotationType.HIGHLIGHT) {
     next.content.quads = next.content.quads.map((quad) => Object.fromEntries(Object.entries(quad).map(([key, point]) => [key, mapPoint(point, annotation.bounds, newBounds)])));
   }
@@ -106,10 +112,15 @@ function signatureAnnotationAt(signature, pageIndex, point, pageInfo) {
   const width = Math.max(8, signature.width * scale);
   const height = Math.max(8, signature.height * scale);
   const bounds = makeBounds(point.x - width / 2, point.y - height / 2, point.x + width / 2, point.y + height / 2);
-  const paths = signature.paths.map((path) => path.map((item) => ({
+  const strokes = signature.strokes.map((stroke) => ({
+    ...stroke,
+    strokeWidth: stroke.strokeWidth * scale,
+    points: stroke.points.map((item) => ({
     x: bounds.left + item.x * scale,
     y: bounds.bottom + (signature.height - item.y) * scale,
-  })));
+    })),
+  }));
+  const paths = strokes.map((stroke) => stroke.points);
   return clampToPage({
     editorId: `signature-${createEditorId().slice("editor-".length)}`,
     pageIndex,
@@ -117,7 +128,7 @@ function signatureAnnotationAt(signature, pageIndex, point, pageInfo) {
     position: paths[0][0],
     bounds,
     style: makeStyle({ color: signature.color, opacity: 1, strokeWidth: signature.strokeWidth * scale, fontSize: 14 }),
-    content: { paths },
+    content: { paths, strokes },
   }, pageInfo);
 }
 

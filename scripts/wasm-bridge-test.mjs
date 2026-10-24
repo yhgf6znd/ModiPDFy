@@ -52,7 +52,10 @@ const signatureAnnotation = {
   position: { x: 180, y: 320 },
   bounds: { left: 180, bottom: 300, right: 260, top: 340 },
   style,
-  content: { paths: [[{ x: 180, y: 310 }, { x: 220, y: 335 }, { x: 260, y: 315 }]] },
+  content: {
+    paths: [[{ x: 180, y: 310 }, { x: 220, y: 335 }, { x: 260, y: 315 }]],
+    strokes: [{ points: [{ x: 180, y: 310 }, { x: 220, y: 335 }, { x: 260, y: 315 }], color: { red: 0.8, green: 0.1, blue: 0.2 }, opacity: 1, strokeWidth: 5, fontSize: 14 }],
+  },
 };
 const highlightAnnotation = {
   editorId: "wasm-highlight-1",
@@ -80,7 +83,7 @@ assert(saved instanceof Uint8Array);
 assert(saved.byteLength > 0);
 const reopenedAnnotated = await openPdfDocument(saved);
 assert.equal(reopenedAnnotated.listAnnotations().length, 4);
-assert.equal(reopenedAnnotated.listAnnotations().find((annotation) => annotation.annotationType === "Signature")?.content.paths.length, 1);
+assert.equal(reopenedAnnotated.listAnnotations().find((annotation) => annotation.annotationType === "Signature")?.content.strokes[0].strokeWidth, 5);
 reopenedAnnotated.removeAnnotation("wasm-highlight-1");
 assert.equal(reopenedAnnotated.listAnnotations().length, 3);
 reopenedAnnotated.dispose();

@@ -4,8 +4,8 @@ use lopdf::{Document, LoadOptions};
 
 use crate::{
     Annotation, AnnotationId, DocumentMetadata, HighlightAnnotation, InkAnnotation, PageDimensions,
-    PageInfo, PdfError, PdfObjectId, PdfObjectInfo, PdfResult, TextAnnotation, annotation, inspect,
-    metadata, page, serialization,
+    PageInfo, PdfError, PdfObjectId, PdfObjectInfo, PdfResult, SignatureAnnotation, TextAnnotation,
+    annotation, inspect, metadata, page, serialization,
 };
 
 /// Default maximum input size for one in-memory PDF document.
@@ -188,18 +188,19 @@ impl PdfDocument {
     /// Add a visual handwritten signature as a native PDF Ink annotation.
     pub fn add_signature_annotation(
         &mut self,
-        annotation: InkAnnotation,
+        annotation: SignatureAnnotation,
     ) -> PdfResult<AnnotationId> {
         self.ensure_editable("edit")?;
         let page = self.page_info(annotation.page_index)?;
-        annotation::validate_ink(&annotation, &page)?;
+        annotation::validate_signature(&annotation, &page)?;
         if !annotation.editor_id.as_str().starts_with("signature-") {
             return Err(PdfError::InvalidAnnotationContent {
                 message: "signature IDs must use the signature- prefix".to_string(),
             });
         }
         self.ensure_unique_annotation_id(&annotation.editor_id)?;
-        let object = annotation::build_ink_object(&mut self.document, &annotation, page.object_id);
+        let object =
+            annotation::build_signature_object(&mut self.document, &annotation, page.object_id);
         let object_id = self.document.add_object(object);
         if let Err(error) =
             annotation::append_annotation_reference(&mut self.document, page.object_id, object_id)

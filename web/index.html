@@ -47,10 +47,12 @@
           <button class="button tool-button" type="button" data-tool="highlight" aria-pressed="false" title="Highlight (H)">Highlight</button>
           <button class="button tool-button" type="button" data-tool="eraser" aria-pressed="false" title="Delete (E)">Delete</button>
         </div>
+        <button id="create-signature" class="button" type="button" disabled>Visual signature</button>
         <label class="property-control" for="annotation-color">Color <input id="annotation-color" type="color" value="#254b87" disabled></label>
         <label class="property-control" for="annotation-width">Width <input id="annotation-width" type="range" min="1" max="20" value="3" disabled></label>
         <label class="property-control" for="annotation-font-size">Font <input id="annotation-font-size" type="number" min="6" max="72" value="14" disabled></label>
         <button id="delete-selected" class="button" type="button" disabled>Delete selected</button>
+        <button id="duplicate-selected" class="button" type="button" disabled>Duplicate signature</button>
         <button id="undo" class="button" type="button" disabled aria-label="Undo">Undo</button>
         <button id="redo" class="button" type="button" disabled aria-label="Redo">Redo</button>
         <button id="export-pdf" class="button button-primary" type="button" disabled>Export PDF</button>
@@ -63,6 +65,30 @@
         </div>
         <div id="pdf-pages" class="pdf-pages" aria-live="off"></div>
       </main>
+
+      <dialog id="signature-dialog" aria-labelledby="signature-dialog-title">
+        <form method="dialog" class="signature-dialog-form">
+          <h2 id="signature-dialog-title">Create visual signature</h2>
+          <p class="signature-warning">This is a visual handwritten signature, not a cryptographic digital signature.</p>
+          <canvas id="signature-canvas" width="840" height="360" aria-label="Draw your signature"></canvas>
+          <div class="signature-controls">
+            <label for="signature-color">Stroke color <input id="signature-color" type="color" value="#254b87"></label>
+            <label for="signature-stroke-width">Width <input id="signature-stroke-width" type="range" min="1" max="20" value="3"></label>
+            <button id="signature-clear" class="button" type="button">Clear</button>
+          </div>
+          <div class="saved-signature-controls">
+            <label for="signature-saved">Saved locally
+              <select id="signature-saved"><option value="">None</option></select>
+            </label>
+            <label><input id="signature-save-local" type="checkbox"> Save this signature on this device</label>
+            <button id="signature-delete-saved" class="button" type="button" disabled>Delete saved</button>
+          </div>
+          <div class="dialog-actions">
+            <button id="signature-cancel" class="button" value="cancel">Cancel</button>
+            <button id="signature-confirm" class="button button-primary" type="submit">Use signature</button>
+          </div>
+        </form>
+      </dialog>
 
       <footer class="app-footer">
         <p id="status" class="status" role="status">Loading the Rust/WASM core…</p>

@@ -37,13 +37,13 @@ Exit evidence: native tests add, save, reopen, and inspect all three annotation 
 
 ## Phase 3 — initial annotation tools
 
-Status: next milestone.
+Status: in progress — visual signature slice delivered.
 
 Complete and harden the initial release tools:
 
 - text highlights based on PDF.js selection rectangles;
 - freehand ink with smoothing/point limits;
-- handwritten signatures as local ink and/or embedded local image according to the finalized policy;
+- visual handwritten signatures as ordered local vector strokes, exported as native PDF Ink without cryptographic claims;
 - notes and basic annotation styling;
 - selecting, moving, resizing where applicable, editing, deleting, and undoing annotation operations.
 
@@ -76,7 +76,7 @@ Each future feature must preserve the same browser-only privacy boundary and mus
 3. **Rotation and crop-box transforms.** PDF.js and PDF user-space conventions can diverge around page boxes and rotation. Centralized transform code needs property tests and real fixtures.
 4. **Large-document memory use.** Holding source bytes, parsed objects, rendered canvases, and WASM memory together may exceed browser limits. Streaming or page-scoped strategies may be needed without compromising export correctness.
 5. **Malformed-PDF denial of service.** Memory safety does not prevent excessive CPU or allocation. Limits, time budgeting, and fuzzing must be validated before accepting arbitrary local files.
-6. **Signature representation.** A handwritten visual signature is not a cryptographic digital signature. The UI and exported metadata must avoid implying legal authenticity until a separate digital-signature design exists.
+6. **Signature interoperability.** Visual signatures use standard `/Ink` geometry and appearance plus a private per-stroke style array. Independent-reader verification is still needed; the UI must never imply cryptographic or legal authenticity.
 7. **PDF.js and Rust/WASM packaging.** Worker paths, cross-origin isolation assumptions, asset pinning, CMap/font precaching, and GitHub Pages subpaths need deployment tests.
 8. **Browser API variability.** File System Access API and persistent storage are not universal. Download via `Blob` must remain the portable baseline.
 9. **Undo/redo and export state.** The browser history is capped and export waits for queued commands, but repeated add/remove edits leave unreachable appearance-support objects in the lopdf object table until a future compaction policy is designed. The design must not retain unbounded full-document copies or confuse PDF object identity with session annotation IDs.

@@ -203,7 +203,7 @@ class PdfDocumentHandle {
       const { editorId, pageIndex, position, bounds, style, content } = annotation;
       return document.addSignatureAnnotation(
         editorId, pageIndex, position.x, position.y, bounds.left, bounds.bottom, bounds.right, bounds.top,
-        content.paths, style.color.red, style.color.green, style.color.blue, style.opacity, style.strokeWidth, style.fontSize,
+        content.strokes, style.color.red, style.color.green, style.color.blue, style.opacity, style.strokeWidth, style.fontSize,
       );
     } catch (error) {
       throw translateWasmError(error);

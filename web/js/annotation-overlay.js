@@ -104,18 +104,22 @@ export class AnnotationOverlay {
       return;
     }
     if (annotation.annotationType === "Ink" || annotation.annotationType === "Signature") {
-      for (const path of annotation.content.paths) {
+      const strokes = annotation.annotationType === "Signature" && annotation.content.strokes
+        ? annotation.content.strokes
+        : annotation.content.paths.map((points) => ({ points, color: annotation.style.color, strokeWidth: annotation.style.strokeWidth, opacity: annotation.style.opacity }));
+      for (const stroke of strokes) {
+        const path = stroke.points;
         if (path.length < 2) continue;
         const element = document.createElementNS(SVG_NS, "path");
         element.setAttribute("class", annotationClass(annotation));
         element.dataset.editorId = annotation.editorId;
         element.setAttribute("d", this.#pathData(path, viewport));
         element.setAttribute("fill", "none");
-        element.setAttribute("stroke", rgb(annotation.style.color));
-        element.setAttribute("stroke-width", String(annotation.style.strokeWidth * viewport.scale));
+        element.setAttribute("stroke", rgb(stroke.color ?? annotation.style.color));
+        element.setAttribute("stroke-width", String((stroke.strokeWidth ?? annotation.style.strokeWidth) * viewport.scale));
         element.setAttribute("stroke-linecap", "round");
         element.setAttribute("stroke-linejoin", "round");
-        element.setAttribute("opacity", String(annotation.style.opacity));
+        element.setAttribute("opacity", String(stroke.opacity ?? annotation.style.opacity));
         element.setAttribute("pointer-events", "stroke");
         svg.append(element);
       }
@@ -160,17 +164,19 @@ export class AnnotationOverlay {
 
   #renderTransient(svg, transient, viewport) {
     if (transient.annotation) {
-      for (const path of transient.annotation.content.paths) {
+      const strokes = transient.annotation.content.strokes ?? transient.annotation.content.paths.map((points) => ({ points, color: transient.annotation.style.color, strokeWidth: transient.annotation.style.strokeWidth, opacity: transient.annotation.style.opacity }));
+      for (const stroke of strokes) {
+        const path = stroke.points;
         if (path.length < 2) continue;
         const element = document.createElementNS(SVG_NS, "path");
         element.setAttribute("class", "interaction-preview");
         element.setAttribute("d", this.#pathData(path, viewport));
         element.setAttribute("fill", "none");
-        element.setAttribute("stroke", rgb(transient.annotation.style.color));
-        element.setAttribute("stroke-width", String(transient.annotation.style.strokeWidth * viewport.scale));
+        element.setAttribute("stroke", rgb(stroke.color ?? transient.annotation.style.color));
+        element.setAttribute("stroke-width", String((stroke.strokeWidth ?? transient.annotation.style.strokeWidth) * viewport.scale));
         element.setAttribute("stroke-linecap", "round");
         element.setAttribute("stroke-linejoin", "round");
-        element.setAttribute("opacity", String(transient.annotation.style.opacity));
+        element.setAttribute("opacity", String(stroke.opacity ?? transient.annotation.style.opacity));
         element.setAttribute("pointer-events", "none");
         svg.append(element);
       }

@@ -18,7 +18,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub use annotation::{
     Annotation, AnnotationContent, AnnotationId, AnnotationStyle, AnnotationType,
     HighlightAnnotation, InkAnnotation, MAX_ANNOTATION_TEXT_BYTES, MAX_HIGHLIGHT_QUADS,
-    MAX_INK_POINTS, PdfColor, PdfPoint, PdfQuad, TextAnnotation,
+    MAX_INK_POINTS, PdfColor, PdfPoint, PdfQuad, SignatureAnnotation, SignatureStroke,
+    TextAnnotation,
 };
 pub use document::{
     DEFAULT_MAX_DECOMPRESSED_STREAM_BYTES, DEFAULT_MAX_INPUT_BYTES, DocumentLoadOptions,
