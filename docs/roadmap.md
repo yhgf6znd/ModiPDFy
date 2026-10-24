@@ -48,7 +48,7 @@ Complete and harden the initial release tools:
 - notes and basic annotation styling;
 - selecting, moving, resizing where applicable, editing, deleting, and undoing annotation operations.
 
-Exit evidence: keyboard and pointer workflows are accessible; committed-state exports reopen through Rust/WASM, PDF.js, and the local independent-reader checks; page count, rotation, annotation IDs, and source text are preserved; and annotation-only changes preserve unrelated page content. Chrome and Adobe Acrobat regression runs remain unavailable in the current environment.
+Exit evidence: keyboard and pointer workflows are accessible; committed-state exports reopen through Rust/WASM, PDF.js, and the local independent-reader checks; page count, rotation, annotation IDs, and source text are preserved; and annotation-only changes preserve unrelated page content. Native Firefox's built-in PDF viewer has loaded a generated export over localhost. Chrome and Adobe Acrobat regression runs remain unavailable in the current environment.
 
 ## Phase 4 — hardening and publication
 
@@ -81,4 +81,4 @@ Each future feature must preserve the same browser-only privacy boundary and mus
 7. **PDF.js and Rust/WASM packaging.** Worker paths, cross-origin isolation assumptions, asset pinning, CMap/font precaching, and GitHub Pages subpaths need deployment tests.
 8. **Browser API variability.** File System Access API and persistent storage are not universal. Download via `Blob` must remain the portable baseline.
 9. **Undo/redo and export state.** The browser history is capped and export waits for queued commands, but repeated add/remove edits leave unreachable appearance-support objects in the lopdf object table until a future compaction policy is designed. The design must not retain unbounded full-document copies or confuse PDF object identity with session annotation IDs.
-10. **Independent-reader and offline evidence.** Semantic reopenability is covered by lopdf and PDF.js, and the automated export fixture is checked with Poppler and Ghostscript. Adobe Acrobat, Chrome, and deployed GitHub Pages offline reload still need environment-specific verification.
+10. **Independent-reader and offline evidence.** Semantic reopenability is covered by lopdf and PDF.js, and the automated export fixture is checked with Poppler and Ghostscript. Chrome, Adobe Acrobat, and deployed GitHub Pages offline reload still need environment-specific verification; native Firefox viewer loading is covered locally.
