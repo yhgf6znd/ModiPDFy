@@ -13,6 +13,17 @@ function assert(condition, message) {
   }
 }
 
+async function waitForActivation(registration) {
+  const worker = registration.installing || registration.waiting || registration.active;
+  if (!worker || worker.state === "activated") return;
+  await new Promise((resolve, reject) => {
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "activated") resolve();
+      else if (worker.state === "redundant") reject(new Error("service worker became redundant"));
+    });
+  });
+}
+
 async function run() {
   await initializeWasm();
   const source = createPdfFixture();
@@ -46,6 +57,13 @@ async function run() {
     const repeated = await openPdfDocument(source);
     assert(repeated.pageCount() === 1, "repeated document did not load");
     repeated.dispose();
+  }
+
+  const registration = await navigator.serviceWorker.register(new URL("../../web/sw.js", import.meta.url), { scope: new URL("../../web/", import.meta.url).pathname });
+  await waitForActivation(registration);
+  const shellCache = await caches.open("modipdfy-shell-v3");
+  for (const asset of ["main.js", "pdf-export.js", "pdfjs-loader.js", "history.js", "signature-pad.js", "signature-storage.js"]) {
+    assert(await shellCache.match(new URL(`../../web/js/${asset}`, import.meta.url)), `offline cache is missing ${asset}`);
   }
 
   result.dataset.status = "pass";

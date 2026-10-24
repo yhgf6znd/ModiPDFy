@@ -1,4 +1,4 @@
-const CACHE_NAME = "modipdfy-shell-v2";
+const CACHE_NAME = "modipdfy-shell-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -12,6 +12,10 @@ const ASSETS = [
   "./js/pdf-viewer.js",
   "./js/wasm-client.js",
   "./js/wasm-bridge.js",
+  "./js/pdf-export.js",
+  "./js/history.js",
+  "./js/signature-pad.js",
+  "./js/signature-storage.js",
   "./pdfjs/pdf.js",
   "./pdfjs/pdf.worker.js",
   "./pdfjs/pdf_viewer.css",
