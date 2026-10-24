@@ -3,7 +3,7 @@ import initializeWasmModule, {
   get_version as getWasmVersion,
 } from "../pkg/modipdfy_wasm.js";
 
-const MAX_PDF_INPUT_BYTES = 128 * 1024 * 1024;
+export const MAX_PDF_INPUT_BYTES = 128 * 1024 * 1024;
 let initializationPromise;
 
 /** Error shape exposed by the browser-side WASM bridge. */

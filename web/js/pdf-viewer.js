@@ -142,6 +142,11 @@ export class PdfViewer {
       await this.#renderPage(0, generation);
     } catch (error) {
       if (generation === this.renderGeneration) {
+        try {
+          await this.close();
+        } catch {
+          // Preserve the original load/render error for the caller.
+        }
         this.onStatus("Could not open this PDF.", "error");
       }
       throw error;

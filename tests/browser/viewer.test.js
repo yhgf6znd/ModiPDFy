@@ -27,6 +27,14 @@ async function run() {
   assert(document.querySelectorAll(".annotationLayer").length === 4, "annotation layers are missing");
   await viewer.close();
   assert(viewer.pageCount === 0, "close did not release the document");
+  let malformedRejected = false;
+  try {
+    await viewer.openBytes(new Uint8Array([1, 2, 3]), { name: "malformed.pdf" });
+  } catch {
+    malformedRejected = true;
+  }
+  assert(malformedRejected, "malformed PDF should reject in the viewer");
+  assert(viewer.pageCount === 0, "failed viewer open should release the PDF document");
   result.dataset.status = "pass";
   result.textContent = "PDF.js viewer integration tests passed.";
 }

@@ -167,6 +167,19 @@ export class AnnotationInteraction {
     this.documentHandle = documentHandle;
   }
 
+  /** Finish the previous queue and clear sticky state before opening a new document. */
+  async resetForDocumentChange() {
+    await this.commandQueue;
+    this.#finishTextDraft(false);
+    if (this.gesture) this.#cancelGesture({ pointerId: this.gesture.pointerId });
+    this.pendingSignature = null;
+    this.overlay.clearTransient();
+    this.commandError = null;
+    this.commandQueue = Promise.resolve();
+    this.setTool(Tool.SELECT);
+    this.setSelected(null);
+  }
+
   beginSignaturePlacement(signature) {
     this.pendingSignature = cloneAnnotation(signature);
     this.setTool(Tool.SIGNATURE);

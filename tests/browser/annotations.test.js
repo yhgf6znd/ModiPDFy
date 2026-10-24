@@ -272,6 +272,8 @@ async function run() {
     flushRejected = true;
   }
   assert(flushRejected, "export flush did not reject after a failed Rust command");
+  await interaction.resetForDocumentChange();
+  await interaction.flush();
   documentHandle.dispose();
   result.dataset.status = "pass";
   result.textContent = "Annotation interaction tests passed.";

@@ -180,18 +180,22 @@ export function suggestedFilename(originalName) {
 
 export function downloadPdf(bytes, filename, browser = globalThis) {
   const blob = new browser.Blob([bytes], { type: "application/pdf" });
-  const url = browser.URL.createObjectURL(blob);
-  const link = browser.document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  browser.document.body.append(link);
+  let url;
+  let link;
   try {
+    url = browser.URL.createObjectURL(blob);
+    link = browser.document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    browser.document.body.append(link);
     link.click();
   } finally {
-    browser.setTimeout(() => {
-      link.remove();
-      browser.URL.revokeObjectURL(url);
-    }, 1000);
+    if (link || url) {
+      browser.setTimeout(() => {
+        link?.remove();
+        if (url) browser.URL.revokeObjectURL(url);
+      }, 1000);
+    }
   }
 }
 function validateEditorId(editorId, label) {

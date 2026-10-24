@@ -3,7 +3,7 @@ import { AnnotationInteraction } from "./annotation-interaction.js";
 import { AnnotationStore, Tool, makeStyle } from "./annotation-model.js";
 import { PdfViewer } from "./pdf-viewer.js";
 import { colorFromHex } from "./annotation-interaction.js";
-import { loadWasm, openPdfDocument } from "./wasm-client.js";
+import { MAX_PDF_INPUT_BYTES, loadWasm, openPdfDocument } from "./wasm-client.js";
 import { downloadPdf, exportPdfBytes, suggestedFilename } from "./pdf-export.js";
 import { SignaturePad } from "./signature-pad.js";
 import { deleteStoredSignature, listStoredSignatures, saveStoredSignature } from "./signature-storage.js";
@@ -172,17 +172,23 @@ async function openFile(file) {
     setStatus("Please choose a PDF file.", "error");
     return;
   }
+  if (Number.isFinite(file.size) && file.size > MAX_PDF_INPUT_BYTES) {
+    setStatus("This PDF exceeds the supported 128 MiB input limit.", "error");
+    return;
+  }
   try {
-    await interaction?.flush();
+    await interaction?.resetForDocumentChange();
     const buffer = await file.arrayBuffer();
     const wasmBytes = new Uint8Array(buffer);
     const viewerBytes = new Uint8Array(buffer.slice(0));
     let nextDocument = await openPdfDocument(wasmBytes);
     try {
+      documentHandle?.dispose();
+      documentHandle = null;
+      interaction.setDocument(null);
       await viewer.openBytes(viewerBytes, { name: file.name });
       const annotations = nextDocument.listAnnotations();
       const metadata = nextDocument.metadata();
-      documentHandle?.dispose();
       documentHandle = nextDocument;
       nextDocument = null;
       interaction.setDocument(documentHandle);
