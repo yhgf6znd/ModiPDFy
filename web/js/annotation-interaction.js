@@ -139,7 +139,7 @@ function isEditableTarget(target) {
 
 /** Pointer-event controller for temporary overlays and completed Rust-backed commands. */
 export class AnnotationInteraction {
-  constructor({ viewer, pagesElement, viewportElement, store, overlay, controls, onStatus = () => {}, onSelectionChange = () => {}, getPageInfo = () => null }) {
+  constructor({ viewer, pagesElement, viewportElement, store, overlay, controls, onStatus = () => {}, onSelectionChange = () => {}, getPageInfo = () => null, confirmDestructive = () => true }) {
     this.viewer = viewer;
     this.pagesElement = pagesElement;
     this.viewportElement = viewportElement;
@@ -149,6 +149,7 @@ export class AnnotationInteraction {
     this.onStatus = onStatus;
     this.onSelectionChange = onSelectionChange;
     this.getPageInfo = getPageInfo;
+    this.confirmDestructive = confirmDestructive;
     this.tool = Tool.SELECT;
     this.documentHandle = null;
     this.selectedId = null;
@@ -218,7 +219,7 @@ export class AnnotationInteraction {
   async deleteSelected() {
     if (!this.selectedId) return;
     const annotation = this.store.get(this.selectedId);
-    if (!annotation) return;
+    if (!annotation || !this.confirmDestructive(annotation)) return;
     this.setSelected(null);
     this.store.commitRemove(annotation, annotation.annotationType === AnnotationType.SIGNATURE ? CommandOperation.DELETE_SIGNATURE : CommandOperation.DELETE_ANNOTATION);
   }

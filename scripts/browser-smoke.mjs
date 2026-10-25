@@ -51,7 +51,7 @@ let browser;
 try {
   await ready;
   browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
+  const context = await browser.newContext({ hasTouch: true });
   const page = await context.newPage();
   const externalRequests = [];
   page.on("request", (request) => {
@@ -59,6 +59,19 @@ try {
   });
 
   await page.goto(baseUrl);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  assert(await page.locator("#page-sidebar").isVisible(), "desktop page sidebar is not visible");
+  assert(await page.locator("#properties-panel").isVisible(), "desktop properties panel is not visible");
+  assert(await page.locator("#toggle-pages").isHidden(), "mobile page toggle is visible on desktop");
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert(await page.locator("#toggle-pages").isVisible(), "mobile page toggle is not visible");
+  await page.locator("#toggle-pages").tap();
+  assert(await page.locator("#page-sidebar").evaluate((element) => element.classList.contains("is-open")), "touch page panel did not open");
+  await page.locator("#close-pages").tap();
+  assert(!(await page.locator("#page-sidebar").evaluate((element) => element.classList.contains("is-open"))), "touch page panel did not close");
+  await page.locator("#theme-select").selectOption("dark");
+  assert(await page.locator("html").evaluate((element) => element.dataset.theme === "dark"), "dark theme was not applied");
+  await page.locator("#theme-select").selectOption("system");
   const onlineChecks = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.ready;
     const cacheName = (await caches.keys()).find((key) => key.startsWith("modipdfy-shell-"));

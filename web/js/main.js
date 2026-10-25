@@ -10,11 +10,17 @@ import { clearStoredSignatures, deleteStoredSignature, listStoredSignatures, sav
 import { createPwaLifecycle } from "./pwa.js";
 
 const elements = {
+  appShell: document.querySelector(".app-shell"),
   fileInput: document.querySelector("#file-input"),
   dropzone: document.querySelector("#dropzone"),
   viewport: document.querySelector("#viewer-viewport"),
   pages: document.querySelector("#pdf-pages"),
   documentName: document.querySelector("#document-name"),
+  saveState: document.querySelector("#save-state"),
+  pageSidebar: document.querySelector("#page-sidebar"),
+  propertiesPanel: document.querySelector("#properties-panel"),
+  pageThumbnails: document.querySelector("#page-thumbnails"),
+  pageThumbnailsEmpty: document.querySelector("#page-thumbnails-empty"),
   previous: document.querySelector("#previous-page"),
   next: document.querySelector("#next-page"),
   pageInput: document.querySelector("#page-input"),
@@ -24,6 +30,9 @@ const elements = {
   fitWidth: document.querySelector("#fit-width"),
   fitPage: document.querySelector("#fit-page"),
   zoomLevel: document.querySelector("#zoom-level"),
+  loadingIndicator: document.querySelector("#loading-indicator"),
+  loadingLabel: document.querySelector("#loading-label"),
+  exportProgress: document.querySelector("#export-progress"),
   status: document.querySelector("#status"),
   version: document.querySelector("#version"),
   color: document.querySelector("#annotation-color"),
@@ -37,6 +46,11 @@ const elements = {
   exportPdf: document.querySelector("#export-pdf"),
   installApp: document.querySelector("#install-app"),
   updateApp: document.querySelector("#update-app"),
+  themeSelect: document.querySelector("#theme-select"),
+  togglePages: document.querySelector("#toggle-pages"),
+  toggleTools: document.querySelector("#toggle-tools"),
+  closePages: document.querySelector("#close-pages"),
+  closeTools: document.querySelector("#close-tools"),
   connectivityStatus: document.querySelector("#connectivity-status"),
   clearLocalData: document.querySelector("#clear-local-data"),
   toolButtons: [...document.querySelectorAll("[data-tool]")],
@@ -60,10 +74,37 @@ let interaction;
 let signaturePad;
 let storedSignatures = [];
 let pendingUpdateApply = null;
+let documentReady = false;
+let documentDirty = false;
 
 function setStatus(message, state = "ready") {
   elements.status.textContent = message;
   elements.status.dataset.state = state;
+  const busy = /opening|loading|preparing|exporting|working/i.test(message) && state !== "error";
+  elements.loadingIndicator.hidden = !busy;
+  elements.loadingLabel.textContent = message;
+  elements.appShell.setAttribute("aria-busy", String(busy));
+}
+
+function setDirty(dirty) {
+  documentDirty = dirty;
+  elements.saveState.textContent = dirty ? "Unsaved changes" : "Saved";
+  elements.saveState.dataset.state = dirty ? "unsaved" : "saved";
+}
+
+function setPanelOpen(panel, button, open) {
+  panel.classList.toggle("is-open", open);
+  button.setAttribute("aria-expanded", String(open));
+}
+
+function applyTheme(theme) {
+  if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+  else delete document.documentElement.dataset.theme;
+  try {
+    localStorage.setItem("modipdfy-theme", theme);
+  } catch {
+    // Theme preference is optional and must not block editing.
+  }
 }
 
 function setConnectivity(online) {
@@ -139,6 +180,7 @@ const controls = {
 const store = new AnnotationStore({
   onChange() {
     overlay?.renderAll();
+    if (documentReady) setDirty(store.history.length > 0);
     updateDocumentControls();
   },
   onCommand(command) {
@@ -151,18 +193,21 @@ const viewer = new PdfViewer({
   pagesElement: elements.pages,
   onPageCount(pageCount) {
     currentPageCount = pageCount;
+    buildPageThumbnails(pageCount);
     updateDocumentControls();
   },
   onPageChange(pageNumber) {
     currentPage = pageNumber;
+    updateActiveThumbnail(pageNumber);
     updateDocumentControls();
   },
   onZoomChange(percent) {
     elements.zoomLevel.textContent = `${percent}%`;
     overlay?.renderAll();
   },
-  onPageRender() {
+  onPageRender(pageIndex, state) {
     overlay?.renderAll();
+    updatePageThumbnail(pageIndex, state);
   },
   onStatus: setStatus,
 });
@@ -189,9 +234,13 @@ interaction = new AnnotationInteraction({
   getPageInfo(pageIndex) {
     return documentHandle?.pageInfo(pageIndex);
   },
+  confirmDestructive(annotation) {
+    return globalThis.confirm("Delete this " + annotation.annotationType.toLowerCase() + " annotation?");
+  },
 });
 
 async function openFile(file) {
+  if (documentDirty && !globalThis.confirm("Discard unsaved changes and open another PDF?")) return;
   if (!file || (!file.type && !file.name.toLowerCase().endsWith(".pdf")) || (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"))) {
     setStatus("Please choose a PDF file.", "error");
     return;
@@ -201,7 +250,9 @@ async function openFile(file) {
     return;
   }
   try {
+    setStatus("Opening " + file.name + "…");
     await interaction?.resetForDocumentChange();
+    documentReady = false;
     const buffer = await file.arrayBuffer();
     const wasmBytes = new Uint8Array(buffer);
     const viewerBytes = new Uint8Array(buffer.slice(0));
@@ -217,6 +268,8 @@ async function openFile(file) {
       nextDocument = null;
       interaction.setDocument(documentHandle);
       store.replaceAll(annotations);
+      documentReady = true;
+      setDirty(false);
       selectedAnnotation = null;
       interaction.setSelected(null);
       elements.documentName.textContent = file.name;
@@ -234,6 +287,8 @@ async function openFile(file) {
 
 async function exportPdf() {
   if (!documentHandle) return;
+  elements.exportProgress.hidden = false;
+  setStatus("Preparing export…");
   try {
     await interaction?.flush();
     const bytes = await exportPdfBytes({
@@ -242,9 +297,13 @@ async function exportPdf() {
       reopen: openPdfDocument,
     });
     downloadPdf(bytes, suggestedFilename(elements.documentName.textContent));
+    setDirty(false);
     setStatus("Modified PDF exported to your device.");
   } catch (error) {
-    setStatus(`Could not export PDF: ${error instanceof Error ? error.message : String(error)}`, "error");
+    setStatus("Could not export PDF: " + (error instanceof Error ? error.message : String(error)), "error");
+  } finally {
+    elements.exportProgress.hidden = true;
+    updateDocumentControls();
   }
 }
 
@@ -300,6 +359,65 @@ async function confirmSignature() {
   }
   elements.signatureDialog.close();
   interaction.beginSignaturePlacement(signature);
+}
+
+elements.themeSelect.addEventListener("change", () => applyTheme(elements.themeSelect.value));
+try {
+  const savedTheme = localStorage.getItem("modipdfy-theme") || "system";
+  elements.themeSelect.value = savedTheme;
+  applyTheme(savedTheme);
+} catch {
+  elements.themeSelect.value = "system";
+}
+
+elements.togglePages.addEventListener("click", () => setPanelOpen(elements.pageSidebar, elements.togglePages, !elements.pageSidebar.classList.contains("is-open")));
+elements.toggleTools.addEventListener("click", () => setPanelOpen(elements.propertiesPanel, elements.toggleTools, !elements.propertiesPanel.classList.contains("is-open")));
+elements.closePages.addEventListener("click", () => setPanelOpen(elements.pageSidebar, elements.togglePages, false));
+elements.closeTools.addEventListener("click", () => setPanelOpen(elements.propertiesPanel, elements.toggleTools, false));
+
+function buildPageThumbnails(pageCount) {
+  elements.pageThumbnails.querySelectorAll(".thumbnail-button").forEach((button) => button.remove());
+  elements.pageThumbnailsEmpty.hidden = pageCount > 0;
+  for (let index = 0; index < pageCount; index += 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "thumbnail-button";
+    button.dataset.pageIndex = String(index);
+    button.setAttribute("aria-label", "Go to page " + (index + 1));
+    const canvas = document.createElement("canvas");
+    canvas.width = 136;
+    canvas.height = 192;
+    canvas.setAttribute("aria-hidden", "true");
+    const number = document.createElement("span");
+    number.className = "thumbnail-number";
+    number.textContent = "Page " + (index + 1);
+    button.append(canvas, number);
+    button.addEventListener("click", () => void viewer.goToPage(index + 1));
+    elements.pageThumbnails.append(button);
+  }
+  updateActiveThumbnail(currentPage);
+}
+
+function updateActiveThumbnail(pageNumber) {
+  elements.pageThumbnails.querySelectorAll(".thumbnail-button").forEach((button) => {
+    const active = Number(button.dataset.pageIndex) + 1 === pageNumber;
+    button.classList.toggle("is-active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+}
+
+function updatePageThumbnail(pageIndex, state) {
+  const button = [...elements.pageThumbnails.querySelectorAll(".thumbnail-button")].find((candidate) => Number(candidate.dataset.pageIndex) === pageIndex);
+  if (!button || !state?.canvas) return;
+  const canvas = button.querySelector("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  const scale = Math.min(canvas.width / state.canvas.width, canvas.height / state.canvas.height);
+  const width = state.canvas.width * scale;
+  const height = state.canvas.height * scale;
+  context.drawImage(state.canvas, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
 }
 
 elements.fileInput.addEventListener("change", () => {
@@ -365,14 +483,37 @@ elements.undo.addEventListener("click", () => void interaction.undo());
 elements.redo.addEventListener("click", () => void interaction.redo());
 elements.exportPdf.addEventListener("click", () => void exportPdf());
 
+document.addEventListener("keydown", (event) => {
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement || event.target.isContentEditable) return;
+  const modifier = event.ctrlKey || event.metaKey;
+  const key = event.key.toLowerCase();
+  if (modifier && key === "s") {
+    event.preventDefault();
+    void exportPdf();
+  } else if (modifier && key === "o") {
+    event.preventDefault();
+    elements.fileInput.click();
+  } else if (modifier && key === "z") {
+    event.preventDefault();
+    void (event.shiftKey ? interaction.redo() : interaction.undo());
+  } else if (event.key === "Escape") {
+    setPanelOpen(elements.pageSidebar, elements.togglePages, false);
+    setPanelOpen(elements.propertiesPanel, elements.toggleTools, false);
+  }
+});
+
+function selectTool(button) {
+  interaction.setTool(button.dataset.tool);
+  for (const candidate of elements.toolButtons) {
+    const active = candidate === button;
+    candidate.classList.toggle("is-active", active);
+    candidate.setAttribute("aria-pressed", String(active));
+  }
+}
+
 for (const button of elements.toolButtons) {
   button.addEventListener("click", () => {
-    interaction.setTool(button.dataset.tool);
-    for (const candidate of elements.toolButtons) {
-      const active = candidate === button;
-      candidate.classList.toggle("is-active", active);
-      candidate.setAttribute("aria-pressed", String(active));
-    }
+    selectTool(button);
   });
 }
 
@@ -403,5 +544,14 @@ async function boot() {
 function colorToHex(color) {
   return `#${[color.red, color.green, color.blue].map((value) => Math.round(value * 255).toString(16).padStart(2, "0")).join("")}`;
 }
+
+document.addEventListener("keydown", (event) => {
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement || event.target.isContentEditable) return;
+  const shortcutTool = { v: "select", t: "text", p: "pen", h: "highlight", e: "eraser" }[event.key.toLowerCase()];
+  if (shortcutTool) {
+    const button = elements.toolButtons.find((candidate) => candidate.dataset.tool === shortcutTool);
+    if (button && !button.disabled) selectTool(button);
+  }
+});
 
 void boot();
