@@ -27,6 +27,14 @@ async function run() {
   assert(document.querySelectorAll(".annotationLayer").length === 4, "annotation layers are missing");
   await viewer.close();
   assert(viewer.pageCount === 0, "close did not release the document");
+  for (let iteration = 0; iteration < 4; iteration += 1) {
+    await viewer.openBytes(createMultipagePdfFixture(2), { name: "repeated-viewer-fixture.pdf" });
+    await viewer.close();
+    assert(viewer.pageCount === 0, "repeated close did not release the document");
+    assert(viewer.getRenderedPageStates().length === 0, "repeated close retained rendered page state");
+    assert(document.querySelectorAll(".pdf-page").length === 0, "repeated close retained page shells");
+  }
+
   let malformedRejected = false;
   try {
     await viewer.openBytes(new Uint8Array([1, 2, 3]), { name: "malformed.pdf" });

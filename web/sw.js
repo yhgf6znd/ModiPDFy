@@ -1,4 +1,4 @@
-const CACHE_NAME = "modipdfy-shell-v9";
+const CACHE_NAME = "modipdfy-shell-v10";
 const CACHE_PREFIX = "modipdfy-shell-";
 const STATIC_ASSETS = [
   "./",
@@ -14,12 +14,13 @@ const STATIC_ASSETS = [
   "./js/pdf-viewer.js",
   "./js/wasm-client.js",
   "./js/wasm-bridge.js",
+  "./js/resource-limits.js",
   "./js/pdf-export.js",
   "./js/history.js",
   "./js/signature-pad.js",
   "./js/signature-storage.js",
-  "./pdfjs/pdf.js",
-  "./pdfjs/pdf.worker.js",
+  "./pdfjs/pdf.mjs",
+  "./pdfjs/pdf.worker.mjs",
   "./pdfjs/pdf_viewer.css",
   "./pdfjs/LICENSE",
   "./pdfjs/NOTICE.txt",

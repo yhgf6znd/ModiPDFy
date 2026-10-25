@@ -36,9 +36,10 @@ for (const asset of [
   "js/main.js",
   "js/pwa.js",
   "js/wasm-client.js",
+  "js/resource-limits.js",
   "js/pdf-viewer.js",
-  "pdfjs/pdf.js",
-  "pdfjs/pdf.worker.js",
+  "pdfjs/pdf.mjs",
+  "pdfjs/pdf.worker.mjs",
   "pdfjs/pdf_viewer.css",
   "pdfjs/asset-manifest.json",
   "manifest.webmanifest",
@@ -61,6 +62,8 @@ assert(Array.isArray(assetManifest) && assetManifest.length > 0, "The PDF.js ass
 for (const asset of assetManifest) requireFile(asset.replace(/^\.\//, ""));
 
 const index = read("index.html");
+assert(index.includes("Content-Security-Policy"), "Generated HTML is missing the Content Security Policy.");
+assert(index.includes("default-src " + String.fromCharCode(39) + "self" + String.fromCharCode(39)), "Generated HTML CSP is not same-origin restricted.");
 for (const match of index.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
   const reference = match[1];
   if (reference.startsWith("./")) requireFile(reference.slice(2));
@@ -78,7 +81,7 @@ for (const relativePath of runtimeSources) {
 
 const serviceWorker = read("sw.js");
 assert(serviceWorker.includes("./pkg/modipdfy_wasm_bg.wasm"), "The service worker does not precache the WASM binary.");
-assert(serviceWorker.includes("./pdfjs/pdf.worker.js"), "The service worker does not precache the PDF.js worker.");
+assert(serviceWorker.includes("./pdfjs/pdf.worker.mjs"), "The service worker does not precache the PDF.js worker.");
 assert(serviceWorker.includes("./icons/icon-192.png"), "The service worker does not precache the PWA icons.");
 
 console.log(`Validated ${outputDirectory} for public base path ${publicBasePath}.`);

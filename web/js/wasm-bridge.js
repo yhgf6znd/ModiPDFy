@@ -2,8 +2,9 @@ import initializeWasmModule, {
   ModiPdfDocument as WasmModiPdfDocument,
   get_version as getWasmVersion,
 } from "../pkg/modipdfy_wasm.js";
+import { MAX_PDF_INPUT_BYTES } from "./resource-limits.js";
 
-export const MAX_PDF_INPUT_BYTES = 128 * 1024 * 1024;
+export { MAX_PDF_INPUT_BYTES };
 let initializationPromise;
 
 /** Error shape exposed by the browser-side WASM bridge. */
@@ -19,10 +20,20 @@ export class WasmBridgeError extends Error {
 /** Initialize the generated WASM module once. An optional initializer is useful for tests. */
 export async function initializeWasm(initializer) {
   if (!initializationPromise) {
-    initializationPromise = initializeWasmModule(initializer).catch((error) => {
-      initializationPromise = undefined;
-      throw translateWasmError(error);
-    });
+    globalThis.performance?.mark?.("modipdfy-wasm-init-start");
+    initializationPromise = initializeWasmModule(initializer).then(
+      (result) => {
+        globalThis.performance?.mark?.("modipdfy-wasm-init-end");
+        try { globalThis.performance?.measure?.("modipdfy-wasm-init", "modipdfy-wasm-init-start", "modipdfy-wasm-init-end"); } catch { /* Performance marks are optional. */ }
+        return result;
+      },
+      (error) => {
+        initializationPromise = undefined;
+        globalThis.performance?.mark?.("modipdfy-wasm-init-end");
+        try { globalThis.performance?.measure?.("modipdfy-wasm-init", "modipdfy-wasm-init-start", "modipdfy-wasm-init-end"); } catch { /* Performance marks are optional. */ }
+        throw translateWasmError(error);
+      },
+    );
   }
   await initializationPromise;
 }

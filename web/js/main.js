@@ -488,6 +488,12 @@ elements.undo.addEventListener("click", () => void interaction.undo());
 elements.redo.addEventListener("click", () => void interaction.redo());
 elements.exportPdf.addEventListener("click", () => void exportPdf());
 
+globalThis.addEventListener("beforeunload", (event) => {
+  if (!documentDirty) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement || event.target.isContentEditable) return;
   const modifier = event.ctrlKey || event.metaKey;

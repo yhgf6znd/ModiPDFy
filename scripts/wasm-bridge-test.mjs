@@ -25,8 +25,8 @@ for (const icon of ["icon-192.png", "icon-512.png", "icon-maskable-512.png"]) {
   assert(manifest.icons.some((entry) => entry.src === `./icons/${icon}`), `manifest does not declare ${icon}`);
   assert((await stat(new URL(`../web/icons/${icon}`, import.meta.url))).isFile(), `missing ${icon}`);
 }
-assert(serviceWorkerSource.includes("modipdfy-shell-v9"), "service-worker cache version was not updated");
-for (const asset of ["main.js", "pwa.js", "pdf-export.js", "pdfjs-loader.js", "history.js", "signature-pad.js", "signature-storage.js"]) {
+assert(serviceWorkerSource.includes("modipdfy-shell-v10"), "service-worker cache version was not updated");
+for (const asset of ["main.js", "pwa.js", "pdf-export.js", "pdfjs-loader.js", "history.js", "signature-pad.js", "signature-storage.js", "resource-limits.js"]) {
   assert(serviceWorkerSource.includes(`"./js/${asset}"`), `service worker does not precache ${asset}`);
 }
 

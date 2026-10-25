@@ -17,7 +17,9 @@
     "validate:build": "node scripts/validate-build.mjs",
     "test:browser": "node scripts/browser-smoke.mjs",
     "test": "node scripts/test.mjs",
-    "preview": "node scripts/serve.mjs dist"
+    "preview": "node scripts/serve.mjs dist",
+    "test:browser:harness": "node scripts/browser-harness.mjs",
+    "generate:sbom": "node scripts/generate-sbom.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1",

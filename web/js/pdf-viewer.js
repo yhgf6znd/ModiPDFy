@@ -4,12 +4,33 @@ import {
   cssToPdfPoint,
   pdfRectToCssRect,
 } from "./coordinates.js";
+import { MAX_BROWSER_PAGE_COUNT, MAX_PDF_INPUT_BYTES, MAX_RENDER_PIXELS } from "./resource-limits.js";
 
 const DEFAULT_SCALE = 1;
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 4;
 const SCALE_STEP = 0.25;
 const PAGE_MARGIN = 24;
+
+const SAFE_LINK_SERVICE = Object.freeze({
+  addLinkAttributes(link, url) {
+    try {
+      const parsed = new URL(url, globalThis.document.baseURI);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
+      link.href = parsed.href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer nofollow";
+      link.referrerPolicy = "no-referrer";
+    } catch {
+      // Invalid or executable schemes remain inert.
+    }
+  },
+  getDestinationHash() { return "#"; },
+  getAnchorUrl() { return "#"; },
+  goToDestination() {},
+  executeNamedAction() {},
+  executeSetOCGState() {},
+});
 
 function isRenderCancellation(error) {
   return error?.name === "RenderingCancelledException" || error?.name === "AbortException";
@@ -112,6 +133,12 @@ export class PdfViewer {
     if (!(bytes instanceof Uint8Array)) {
       throw new TypeError("PDF input must be a Uint8Array.");
     }
+    if (bytes.byteLength === 0) {
+      throw new RangeError("PDF input is empty.");
+    }
+    if (bytes.byteLength > MAX_PDF_INPUT_BYTES) {
+      throw new RangeError("PDF input exceeds the browser limit.");
+    }
     await this.close();
     const generation = ++this.renderGeneration;
     this.documentName = name;
@@ -126,6 +153,10 @@ export class PdfViewer {
     this.loadingTask = loadingTask;
     try {
       const document = await loadingTask.promise;
+      if (document.numPages > MAX_BROWSER_PAGE_COUNT) {
+        await document.destroy();
+        throw new RangeError("This PDF contains too many pages for browser editing.");
+      }
       if (generation !== this.renderGeneration) {
         await document.destroy();
         return;
@@ -349,7 +380,10 @@ export class PdfViewer {
     const viewport = page.getViewport({ scale: this.scale, rotation: page.rotate });
     state.viewport = viewport;
     setElementSize(state.stage, viewport.width, viewport.height);
-    const pixelSize = getCanvasPixelSize(viewport.width, viewport.height);
+    const requestedDpr = globalThis.devicePixelRatio || 1;
+    const area = viewport.width * viewport.height;
+    const renderDpr = area > 0 ? Math.min(requestedDpr, Math.sqrt(MAX_RENDER_PIXELS / area)) : requestedDpr;
+    const pixelSize = getCanvasPixelSize(viewport.width, viewport.height, Math.max(0.1, renderDpr));
     state.canvas.width = pixelSize.width;
     state.canvas.height = pixelSize.height;
     setElementSize(state.canvas, pixelSize.cssWidth, pixelSize.cssHeight);
@@ -388,7 +422,12 @@ export class PdfViewer {
           page,
           viewport,
         });
-        await layer.render({ annotations, enableScripting: false });
+        await layer.render({
+          annotations,
+          enableScripting: false,
+          hasJSActions: false,
+          linkService: SAFE_LINK_SERVICE,
+        });
       }
       state.rendered = true;
       state.shell.dataset.ready = "true";

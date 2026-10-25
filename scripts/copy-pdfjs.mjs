@@ -17,7 +17,7 @@ if (!existsSync(sourceBuild)) {
 rmSync(destination, { force: true, recursive: true });
 mkdirSync(destination, { recursive: true });
 
-for (const file of ["pdf.js", "pdf.worker.js"]) {
+for (const file of ["pdf.mjs", "pdf.worker.mjs"]) {
   cpSync(resolve(sourceBuild, file), resolve(destination, file));
 }
 

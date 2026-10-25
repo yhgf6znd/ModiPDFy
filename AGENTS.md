@@ -11,6 +11,9 @@ This file is permanent guidance for future Codex sessions and contributors. The 
 - Preserve original PDF content and appearance whenever possible. Never flatten an entire page to implement a simple annotation.
 - Treat imported PDFs and document-derived strings as untrusted input. Do not use `unwrap`/`expect` on input-controlled values in production paths; enforce resource limits and return typed errors.
 - Review every dependency and bundled asset for permissive licensing, native/WASM compatibility, network behavior, and unnecessary surface area.
+- Keep browser resource limits in `web/js/resource-limits.js` and enforce them before both PDF.js and WASM processing; preserve the render-pixel cap and repeated-load cleanup coverage.
+- Keep the static CSP same-origin and keep imported PDF scripting disabled. Route PDF link annotations through the safe link service; never allow executable schemes or automatic external requests.
+- Keep local performance marks free of document data and never send them to a remote service. Run `npm run generate:sbom` after dependency changes and review `npm audit` plus the Rust dependency audit when available.
 - Maintain automated tests at the lowest layer that proves the behavior, plus boundary tests when serialization, WASM, rendering, or export is involved. Export changes require reopenability tests.
 
 ## Repository conventions
