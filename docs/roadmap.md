@@ -11,7 +11,7 @@ Status: documented.
 
 ## Phase 1 — browser shell and PDF viewing
 
-Status: in progress — browser viewer and installable offline shell delivered; cross-browser offline evidence remains to be recorded.
+Status: complete — browser viewer and installable offline shell delivered and verified in Chromium and Firefox.
 
 Deliver a minimal offline-capable static app:
 
@@ -22,7 +22,7 @@ Deliver a minimal offline-capable static app:
 - PWA manifest with icons, service worker with versioned cache and user-approved updates, online/offline status, explicit local-signature clearing, and GitHub Pages base-path support.
 - Resource limits and safe errors for malformed/oversized PDFs.
 
-Exit evidence: a cached app opens and renders single/multipage fixtures with the network disabled, and the source file never leaves the browser. Browser integration coverage for offline reload, large documents, and device-specific memory behavior remains open.
+Exit evidence: a cached app opens at a GitHub Pages-style `/modipdfy/` subpath, reloads with the server stopped, opens a local PDF, adds an annotation, and exports in both Chromium and Firefox. The versioned cache contains the shell, WASM, PDF.js worker/assets, fonts/CMaps, manifest, and icons; a user-approved worker update removes only the prior ModiPDFy cache. Large-document and device-specific memory behavior, plus a deployed GitHub Pages smoke test, remain open.
 
 ## Phase 2 — annotation foundation
 
@@ -53,7 +53,7 @@ Exit evidence: keyboard and pointer workflows are accessible; committed-state ex
 ## Phase 4 — hardening and publication
 
 - Fuzz PDF parsing and command decoding.
-- Add browser regression tests for offline reload, update activation, and GitHub Pages deployment paths.
+- Verify the deployed GitHub Pages artifact and repeat the offline/update regression on supported release browsers.
 - Complete dependency/asset notices and threat-model review.
 - Performance testing for large page counts and long ink paths.
 - Publish the first stable GitHub Pages release under the MIT license.
@@ -81,4 +81,4 @@ Each future feature must preserve the same browser-only privacy boundary and mus
 7. **PDF.js and Rust/WASM packaging.** Worker paths, cross-origin isolation assumptions, asset pinning, CMap/font precaching, and GitHub Pages subpaths need deployment tests.
 8. **Browser API variability.** File System Access API and persistent storage are not universal. Download via `Blob` must remain the portable baseline.
 9. **Undo/redo and export state.** The browser history is capped and export waits for queued commands, but repeated add/remove edits leave unreachable appearance-support objects in the lopdf object table until a future compaction policy is designed. The design must not retain unbounded full-document copies or confuse PDF object identity with session annotation IDs.
-10. **Independent-reader and offline evidence.** Semantic reopenability is covered by lopdf and PDF.js, and the automated export fixture is checked with Poppler and Ghostscript. Adobe Reader acceptance is covered through an isolated Wine installation, but native Windows/macOS Acrobat visual regression, deployed GitHub Pages offline reload, and cross-browser PWA update behavior still need environment-specific verification; Chromium WebDriver, native Firefox, Evince, Poppler, and Ghostscript coverage is recorded locally.
+10. **Independent-reader and offline evidence.** Semantic reopenability is covered by lopdf and PDF.js, and the automated export fixture is checked with Poppler and Ghostscript. Adobe Reader acceptance is covered through an isolated Wine installation, but native Windows/macOS Acrobat visual regression, deployed GitHub Pages offline reload still needs environment-specific verification; cross-browser PWA update behavior is verified locally; Chromium WebDriver, native Firefox, Evince, Poppler, and Ghostscript coverage is recorded locally.
