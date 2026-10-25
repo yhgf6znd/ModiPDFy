@@ -11,7 +11,7 @@ Status: documented.
 
 ## Phase 1 — browser shell and PDF viewing
 
-Status: in progress — browser viewer slice delivered.
+Status: in progress — browser viewer and installable offline shell delivered; cross-browser offline evidence remains to be recorded.
 
 Deliver a minimal offline-capable static app:
 
@@ -19,7 +19,7 @@ Deliver a minimal offline-capable static app:
 - Local file open and explicit local save/download.
 - PDF.js rendering with local file/drop open, multipage scrolling, page navigation, zoom/fit controls, lazy visible-page rendering, rotation-aware viewport metadata, DPR-aware canvases, and text-layer selection geometry.
 - Native lopdf-backed document loading, metadata, page inspection, object inspection, and unchanged save/reopen are implemented in `modipdfy-core`.
-- PWA manifest, service worker, versioned cache, and GitHub Pages base-path support.
+- PWA manifest with icons, service worker with versioned cache and user-approved updates, online/offline status, explicit local-signature clearing, and GitHub Pages base-path support.
 - Resource limits and safe errors for malformed/oversized PDFs.
 
 Exit evidence: a cached app opens and renders single/multipage fixtures with the network disabled, and the source file never leaves the browser. Browser integration coverage for offline reload, large documents, and device-specific memory behavior remains open.
@@ -81,4 +81,4 @@ Each future feature must preserve the same browser-only privacy boundary and mus
 7. **PDF.js and Rust/WASM packaging.** Worker paths, cross-origin isolation assumptions, asset pinning, CMap/font precaching, and GitHub Pages subpaths need deployment tests.
 8. **Browser API variability.** File System Access API and persistent storage are not universal. Download via `Blob` must remain the portable baseline.
 9. **Undo/redo and export state.** The browser history is capped and export waits for queued commands, but repeated add/remove edits leave unreachable appearance-support objects in the lopdf object table until a future compaction policy is designed. The design must not retain unbounded full-document copies or confuse PDF object identity with session annotation IDs.
-10. **Independent-reader and offline evidence.** Semantic reopenability is covered by lopdf and PDF.js, and the automated export fixture is checked with Poppler and Ghostscript. Adobe Reader acceptance is covered through an isolated Wine installation, but native Windows/macOS Acrobat visual regression and deployed GitHub Pages offline reload still need environment-specific verification; Chromium WebDriver, native Firefox, Evince, Poppler, and Ghostscript coverage is recorded locally.
+10. **Independent-reader and offline evidence.** Semantic reopenability is covered by lopdf and PDF.js, and the automated export fixture is checked with Poppler and Ghostscript. Adobe Reader acceptance is covered through an isolated Wine installation, but native Windows/macOS Acrobat visual regression, deployed GitHub Pages offline reload, and cross-browser PWA update behavior still need environment-specific verification; Chromium WebDriver, native Firefox, Evince, Poppler, and Ghostscript coverage is recorded locally.

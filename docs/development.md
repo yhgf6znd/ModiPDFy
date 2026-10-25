@@ -92,9 +92,9 @@ npm run preview
 npm test
 ```
 
-`npm run dev` builds the WASM package, vendors PDF.js, and serves the static `dist/` directory at localhost. `npm run preview` serves the already-built `dist/` directory. `npm test` runs formatting, clippy, native tests, the WASM build, Node-executed bridge/export/coordinate tests, JavaScript syntax checks, and the production static build. The export integration test requires `pdfinfo`, `pdftotext`, `gs`, and `pdftoppm` for its pixel and corruption checks; if a workstation lacks them, run the Node test after installing Poppler and Ghostscript or record the independent-renderer check as unavailable. The scripts use only Node.js built-ins; PDF.js is a pinned development dependency whose browser assets are copied into the static build.
+`npm run dev` builds the WASM package, vendors PDF.js, and serves the static `dist/` directory at localhost. `npm run preview` serves the already-built `dist/` directory. Both commands serve over HTTP, which is required for service workers; do not test the PWA from `file://`. `npm test` runs formatting, clippy, native tests, the WASM build, Node-executed bridge/export/coordinate tests, JavaScript syntax checks, and the production static build. The export integration test requires `pdfinfo`, `pdftotext`, `gs`, and `pdftoppm` for its pixel and corruption checks; if a workstation lacks them, run the Node test after installing Poppler and Ghostscript or record the independent-renderer check as unavailable. The scripts use only Node.js built-ins; PDF.js is a pinned development dependency whose browser assets are copied into the static build.
 
-The browser integration harness is [`tests/browser/index.html`](../tests/browser/index.html). The annotation interaction harness is [`tests/browser/annotations.html`](../tests/browser/annotations.html). To run them in a browser, build the project, serve the repository root, and open the relevant page:
+The browser integration harness is [`tests/browser/index.html`](../tests/browser/index.html). It also checks the active versioned shell cache, PWA module, manifest icons, and cached icon files. For a true offline test, load the production app once, stop the static server or disable the network, reload the app, then open a local fixture, annotate, and export. Repeat this on Chromium and Firefox. A GitHub Pages subpath test should serve the built files below `/modipdfy/` and verify that the manifest, service worker, WASM, PDF.js worker, CMaps, fonts, and icons resolve below that path. The annotation interaction harness is [`tests/browser/annotations.html`](../tests/browser/annotations.html). To run them in a browser, build the project, serve the repository root, and open the relevant page:
 
 ```sh
 npm run build
@@ -131,10 +131,10 @@ Pin PDF.js and its worker to a reviewed version. The current build pins `pdfjs-d
 - `AGENTS.md`, README, architecture, development, and roadmap agree on the current scope.
 - Native tests pass without a browser or network.
 - WASM build succeeds and has no accidental server dependency.
-- Browser smoke tests pass with the network disabled after caching.
+- Browser smoke tests pass with the network disabled after caching, including open, annotation, and export flows in Chromium and Firefox.
 - Local import, render, annotation operation, export, and reopen flows work.
 - Rotated pages, non-default crop boxes, malformed PDFs, and large-input limits have explicit test coverage or documented limitations.
 - No PDF bytes or document-derived data leave the browser.
-- Service-worker cache versioning and GitHub Pages base paths are verified.
+- Service-worker cache versioning, explicit update activation, cache cleanup, and GitHub Pages base paths are verified.
 - Third-party notices and the MIT license are present in the release artifact.
 - The production bundle contains no debug logging of document data and no analytics/telemetry.

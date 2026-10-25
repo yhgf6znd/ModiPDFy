@@ -54,7 +54,7 @@ The deployable files are written to `dist/`. The command builds the Rust/WASM pa
 - `wasm-bindgen` and `wasm-pack` for the browser boundary.
 - HTML5, CSS, and native JavaScript ES modules.
 - Mozilla PDF.js for rendering and text selection geometry.
-- GitHub Pages with a service worker and web app manifest for offline-capable static hosting.
+- GitHub Pages with a service worker and web app manifest for offline-capable static hosting. The install prompt is optional browser enhancement; the app remains usable through the browser and local download path.
 - MIT license for the project, subject to the notices and license terms of bundled dependencies and assets.
 
 ## Privacy promise
