@@ -125,10 +125,12 @@ try {
   await page.locator(".annotation-text-draft").fill("CI offline annotation");
   await page.locator(".annotation-text-draft").press("Control+Enter");
   await page.waitForFunction(() => !document.querySelector(".annotation-text-draft") && !document.querySelector("#export-pdf").disabled);
+  assert((await page.locator("#save-state").textContent()) === "Unsaved changes", "unsaved indicator was not shown after editing");
 
   const downloadPromise = page.waitForEvent("download");
   await page.locator("#export-pdf").click();
   const download = await downloadPromise;
+  assert((await page.locator("#save-state").textContent()) === "Saved", "save indicator was not restored after export");
   assert(download.suggestedFilename().endsWith("-modified.pdf"), `unexpected export filename: ${download.suggestedFilename()}`);
   console.log(`Browser smoke passed for ${baseUrl}: offline open, annotation, export, WASM, PDF.js, manifest, and service worker checks.`);
 } finally {
