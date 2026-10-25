@@ -41,7 +41,7 @@
             </select>
           </label>
           <button id="toggle-pages" class="button mobile-only" type="button" aria-expanded="false" aria-controls="page-sidebar">Pages</button>
-          <button id="toggle-tools" class="button mobile-only" type="button" aria-expanded="false" aria-controls="properties-panel">Tools</button>
+          <button id="toggle-tools" class="button mobile-only" type="button" aria-expanded="false" aria-controls="properties-panel">Properties</button>
           <button id="install-app" class="button" type="button" hidden>Install</button>
           <button id="update-app" class="button" type="button" hidden>Update</button>
         </div>
@@ -86,6 +86,18 @@
             </div>
           </div>
 
+          <div id="secondary-toolbar" class="secondary-toolbar" role="toolbar" aria-label="Annotation tools">
+            <span class="toolbar-title">Annotate</span>
+            <div class="tool-group">
+              <button class="button tool-button is-active" type="button" data-tool="select" aria-pressed="true" title="Select (V)"><span class="tool-icon" aria-hidden="true">↖</span><span>Select</span><kbd>V</kbd></button>
+              <button class="button tool-button" type="button" data-tool="text" aria-pressed="false" title="Text (T)"><span class="tool-icon" aria-hidden="true">T</span><span>Text</span><kbd>T</kbd></button>
+              <button class="button tool-button" type="button" data-tool="pen" aria-pressed="false" title="Pen (P)"><span class="tool-icon" aria-hidden="true">✎</span><span>Pen</span><kbd>P</kbd></button>
+              <button class="button tool-button" type="button" data-tool="highlight" aria-pressed="false" title="Highlight (H)"><span class="tool-icon" aria-hidden="true">▰</span><span>Highlight</span><kbd>H</kbd></button>
+              <button class="button tool-button" type="button" data-tool="eraser" aria-pressed="false" title="Delete (E)"><span class="tool-icon" aria-hidden="true">⌫</span><span>Delete</span><kbd>E</kbd></button>
+            </div>
+            <button id="create-signature" class="button signature-button" type="button" disabled><span aria-hidden="true">✍</span> Add signature</button>
+          </div>
+
           <main id="viewer-viewport" class="viewer-viewport" tabindex="0" aria-label="PDF document viewer">
             <div id="dropzone" class="dropzone" role="status">
               <div class="empty-state-icon" aria-hidden="true">＋</div>
@@ -98,22 +110,14 @@
           </main>
         </section>
 
-        <aside id="properties-panel" class="sidebar properties-panel" aria-label="Annotation tools and properties">
+        <aside id="properties-panel" class="sidebar properties-panel" aria-label="Selected annotation properties">
           <div class="panel-heading">
             <div>
-              <p class="panel-kicker">Edit</p>
-              <h2>Tools</h2>
+              <p class="panel-kicker">Selection</p>
+              <h2>Properties</h2>
             </div>
-            <button id="close-tools" class="button panel-close mobile-only" type="button" aria-label="Close tools">×</button>
+            <button id="close-tools" class="button panel-close mobile-only" type="button" aria-label="Close properties">×</button>
           </div>
-          <div class="tool-group" role="toolbar" aria-label="Annotation tools">
-            <button class="button tool-button is-active" type="button" data-tool="select" aria-pressed="true" title="Select (V)"><span class="tool-icon" aria-hidden="true">↖</span><span>Select</span><kbd>V</kbd></button>
-            <button class="button tool-button" type="button" data-tool="text" aria-pressed="false" title="Text (T)"><span class="tool-icon" aria-hidden="true">T</span><span>Text</span><kbd>T</kbd></button>
-            <button class="button tool-button" type="button" data-tool="pen" aria-pressed="false" title="Pen (P)"><span class="tool-icon" aria-hidden="true">✎</span><span>Pen</span><kbd>P</kbd></button>
-            <button class="button tool-button" type="button" data-tool="highlight" aria-pressed="false" title="Highlight (H)"><span class="tool-icon" aria-hidden="true">▰</span><span>Highlight</span><kbd>H</kbd></button>
-            <button class="button tool-button" type="button" data-tool="eraser" aria-pressed="false" title="Delete (E)"><span class="tool-icon" aria-hidden="true">⌫</span><span>Delete</span><kbd>E</kbd></button>
-          </div>
-          <button id="create-signature" class="button signature-button" type="button" disabled><span aria-hidden="true">✍</span> Add signature</button>
           <section class="properties-section" aria-labelledby="properties-heading">
             <div class="section-heading"><h3 id="properties-heading">Properties</h3><span class="section-hint">Selected annotation</span></div>
             <label class="property-control" for="annotation-color">Color <input id="annotation-color" type="color" value="#254b87" disabled></label>

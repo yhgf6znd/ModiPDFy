@@ -62,13 +62,19 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
   assert(await page.locator("#page-sidebar").isVisible(), "desktop page sidebar is not visible");
   assert(await page.locator("#properties-panel").isVisible(), "desktop properties panel is not visible");
+  assert(await page.locator("#secondary-toolbar").isVisible(), "desktop secondary annotation toolbar is not visible");
   assert(await page.locator("#toggle-pages").isHidden(), "mobile page toggle is visible on desktop");
   await page.setViewportSize({ width: 390, height: 844 });
   assert(await page.locator("#toggle-pages").isVisible(), "mobile page toggle is not visible");
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), "mobile layout has horizontal overflow");
   await page.locator("#toggle-pages").tap();
   assert(await page.locator("#page-sidebar").evaluate((element) => element.classList.contains("is-open")), "touch page panel did not open");
   await page.locator("#close-pages").tap();
   assert(!(await page.locator("#page-sidebar").evaluate((element) => element.classList.contains("is-open"))), "touch page panel did not close");
+  await page.locator("#toggle-tools").tap();
+  assert(await page.locator("#properties-panel").evaluate((element) => element.classList.contains("is-open")), "touch properties panel did not open");
+  await page.locator("#close-tools").tap();
+  assert(!(await page.locator("#properties-panel").evaluate((element) => element.classList.contains("is-open"))), "touch properties panel did not close");
   await page.locator("#theme-select").selectOption("dark");
   assert(await page.locator("html").evaluate((element) => element.dataset.theme === "dark"), "dark theme was not applied");
   await page.locator("#theme-select").selectOption("system");
@@ -100,6 +106,11 @@ try {
 
   await page.locator("#file-input").setInputFiles(fixturePath);
   await page.waitForFunction(() => document.querySelector("#page-count")?.textContent === "1");
+  assert(await page.locator(".thumbnail-button").count() === 1, "page thumbnail was not created");
+  await page.waitForFunction(() => !document.querySelector('[data-tool="pen"]')?.disabled);
+  await page.locator("#viewer-viewport").focus();
+  await page.keyboard.press("p");
+  assert(await page.locator('[data-tool="pen"][aria-pressed="true"]').count() === 1, "keyboard tool shortcut did not update the active tool");
   await page.locator('[data-tool="text"]').click();
   await page.evaluate(() => {
     const pageElement = document.querySelector(".pdf-page");
