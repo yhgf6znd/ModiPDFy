@@ -8,10 +8,22 @@ import { createPdfFixture } from "../tests/browser/pdf-fixture.js";
 
 const projectRoot = resolve(new URL("..", import.meta.url).pathname);
 const temporaryRoot = mkdtempSync(join(tmpdir(), "modipdfy-browser-smoke-"));
-const hostedRoot = join(temporaryRoot, "modipdfy");
 const fixturePath = join(temporaryRoot, "smoke-fixture.pdf");
-const baseUrl = "http://127.0.0.1:8080/modipdfy/";
 const serverScript = resolve(projectRoot, "scripts", "serve.mjs");
+
+function normalizeBasePath(value) {
+  const raw = String(value ?? "/modipdfy/").trim() || "/";
+  if (!raw.startsWith("/") || raw.includes("..") || raw.includes("\\") || raw.includes("//")) {
+    throw new Error(`PUBLIC_BASE_PATH must be a safe absolute URL path: ${raw}`);
+  }
+  if (raw === "/") return "/";
+  return `${raw.replace(/\/+$/, "")}/`;
+}
+
+const publicBasePath = normalizeBasePath(process.env.PUBLIC_BASE_PATH);
+const relativeBasePath = publicBasePath.slice(1, -1);
+const hostedRoot = relativeBasePath ? join(temporaryRoot, relativeBasePath) : temporaryRoot;
+const baseUrl = `http://127.0.0.1:8080${publicBasePath}`;
 
 cpSync(resolve(projectRoot, "dist"), hostedRoot, { recursive: true });
 writeFileSync(fixturePath, createPdfFixture());

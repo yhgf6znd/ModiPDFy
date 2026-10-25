@@ -82,7 +82,7 @@ The Playwright harness command executes the viewer, WASM bridge, and annotation 
 
 `.github/workflows/deploy.yml` builds and deploys `dist/` to GitHub Pages when `main` changes. The workflow obtains the Pages base path from `actions/configure-pages`; the application itself uses relative asset URLs, so the same build works at `/modipdfy/` and at a domain root without hardcoding a GitHub username.
 
-To enable deployment, set the repository’s Pages “Build and deployment” source to “GitHub Actions”. The deployment job requires the standard `github-pages` environment and the workflow permissions for `pages: write` and `id-token: write`; no secrets or backend service are required.
+To enable deployment, set the repository’s Pages “Build and deployment” source to “GitHub Actions” before the first run. This is a one-time repository setting: `actions/configure-pages` reads the existing Pages site and the default `GITHUB_TOKEN` is intentionally not used to create or administer a new Pages site. The deployment job requires the standard `github-pages` environment and the workflow permissions for `pages: write` and `id-token: write`; no application secrets or backend service are required. After Pages is enabled, the workflow obtains the configured base path, builds relative assets, tests that exact path, uploads `dist/`, and deploys it.
 
 ## Offline installation
 
