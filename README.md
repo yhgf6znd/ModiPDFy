@@ -38,15 +38,52 @@ The Rust core is independent of WebAssembly. `wasm-bindgen` exposes a small, ver
 - [`docs/development.md`](docs/development.md) — local workflow, testing, dependency review, and release checks.
 - [`docs/roadmap.md`](docs/roadmap.md) — staged delivery plan and unresolved risks.
 
-## Build the scaffold
+## Local development and build
 
-After installing Rust, wasm-pack, and Node.js, build the complete static application with:
+Install the pinned Rust toolchain, `wasm-pack`, Node.js 20 or newer, and npm. Then install the locked JavaScript dependencies:
+
+```sh
+npm ci
+```
+
+Build the complete static application with:
 
 ```sh
 npm run build
 ```
 
-The deployable files are written to `dist/`. The command builds the Rust/WASM package, vendors the pinned PDF.js runtime and worker, copies the framework-free frontend, and keeps all asset references relative so the result works at a GitHub Pages project subpath. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
+The deployable files are written to `dist/`. The command builds the Rust/WASM package, vendors the pinned PDF.js runtime and worker, copies the framework-free frontend, and keeps all asset references relative so the result works at a GitHub Pages project subpath or domain root. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
+
+## Tests
+
+Run the full Rust, WASM, JavaScript, PDF interoperability, and static-build suite with:
+
+```sh
+npm test
+npm run validate:build
+```
+
+The browser harnesses in `tests/browser/` should also be opened over the local HTTP server for viewer, annotation, and service-worker smoke testing.
+
+## GitHub Pages deployment
+
+`.github/workflows/ci.yml` runs on every push and pull request. It installs Rust, the `wasm32-unknown-unknown` target, `wasm-pack`, Node.js dependencies, PDF verification tools, and validates the generated static application.
+
+`.github/workflows/deploy.yml` builds and deploys `dist/` to GitHub Pages when `main` changes. The workflow obtains the Pages base path from `actions/configure-pages`; the application itself uses relative asset URLs, so the same build works at `/modipdfy/` and at a domain root without hardcoding a GitHub username.
+
+To enable deployment, set the repository’s Pages “Build and deployment” source to “GitHub Actions”. The deployment job requires the standard `github-pages` environment and the workflow permissions for `pages: write` and `id-token: write`; no secrets or backend service are required.
+
+## Offline installation
+
+Open the HTTPS or localhost site once while online and wait for the shell cache to finish. Supported browsers may show an “Install app” prompt. After caching, the application can open local PDFs, render them, add annotations or signatures, and export without network access. The service worker never caches user documents. Updates wait for explicit approval so an open document is not unexpectedly reloaded.
+
+## Troubleshooting
+
+- If `npm ci` fails, use a supported Node.js version and remove only the local `node_modules/` directory before retrying.
+- If the WASM build fails, install the pinned Rust target and `wasm-pack 0.14.0`; native Rust tests do not require the WASM target.
+- If the service worker does not install, serve the app over HTTPS or `localhost`, reload once online, and inspect the browser’s Application/Storage panel for failed precache assets.
+- If a Pages deployment is missing assets, confirm the Pages source is “GitHub Actions” and inspect the workflow’s generated base path and `dist/` validation output.
+- To recover from stale application assets, use the browser’s site-data controls or ModiPDFy’s “Clear saved data” action, then reload online.
 
 ## Planned technology
 
