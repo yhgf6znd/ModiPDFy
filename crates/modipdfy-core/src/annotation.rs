@@ -1157,12 +1157,21 @@ pub(crate) fn append_annotation_reference(
             .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?;
         match page.get(b"Annots") {
             Ok(Object::Reference(id)) => {
-                document
+                let entries = document
                     .get_object(*id)
                     .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?
                     .as_array()
-                    .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?;
-                Some(*id)
+                    .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?
+                    .clone();
+                if reference_count(document, *id) > 1 {
+                    document
+                        .get_dictionary_mut(page_id)
+                        .map_err(|error| PdfError::AnnotationParse { message: error.to_string() })?
+                        .set("Annots", entries);
+                    Some((0, 0))
+                } else {
+                    Some(*id)
+                }
             }
             Ok(Object::Array(_)) => Some((0, 0)),
             Ok(_) => {

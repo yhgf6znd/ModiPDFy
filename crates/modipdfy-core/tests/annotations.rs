@@ -277,6 +277,35 @@ fn adds_reopens_and_inspects_native_annotation_objects() {
 }
 
 #[test]
+fn adding_to_shared_annotation_arrays_uses_copy_on_write() {
+    let source = shared_annotation_fixture();
+    let mut document = PdfDocument::from_bytes(&source).expect("shared fixture loads");
+
+    document.add_text_annotation(text_annotation()).expect("text adds to first page");
+    let saved = document.save_to_bytes().expect("shared fixture saves");
+    let reopened = Document::load_mem(&saved).expect("shared fixture reopens");
+    let pages = reopened.get_pages();
+
+    let first_page = reopened.get_dictionary(pages[&1]).expect("first page");
+    let first_annots = first_page.get(b"Annots").expect("first page annotations");
+    let first_entries = first_annots.as_array().expect("first page received a private array");
+    assert_eq!(first_entries.len(), 2);
+
+    let second_page = reopened.get_dictionary(pages[&2]).expect("second page");
+    let second_annots = second_page
+        .get(b"Annots")
+        .expect("second page annotations")
+        .as_reference()
+        .expect("second page retains the shared array reference");
+    let second_entries = reopened
+        .get_object(second_annots)
+        .expect("shared annotation array")
+        .as_array()
+        .expect("shared annotation entries");
+    assert_eq!(second_entries.len(), 1);
+}
+
+#[test]
 fn removes_only_the_requested_annotation() {
     let mut document = PdfDocument::from_bytes(&annotation_fixture(false)).expect("fixture loads");
     document.add_text_annotation(text_annotation()).expect("text adds");
