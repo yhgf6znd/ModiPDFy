@@ -25,6 +25,16 @@ async function run() {
   assert(viewer.zoomPercent > 0, "fit width produced an invalid zoom");
   assert(document.querySelectorAll(".textLayer").length === 4, "text layers are missing");
   assert(document.querySelectorAll(".annotationLayer").length === 4, "annotation layers are missing");
+  let replacementRejected = false;
+  try {
+    await viewer.openBytes(new Uint8Array([1, 2, 3]), { name: "malformed-replacement.pdf" });
+  } catch {
+    replacementRejected = true;
+  }
+  assert(replacementRejected, "malformed replacement should reject in the viewer");
+  assert(viewer.pageCount === 4, "failed replacement should preserve the open PDF");
+  assert(document.querySelectorAll(".pdf-page").length === 4, "failed replacement should preserve page shells");
+
   await viewer.close();
   assert(viewer.pageCount === 0, "close did not release the document");
   for (let iteration = 0; iteration < 4; iteration += 1) {

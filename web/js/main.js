@@ -252,18 +252,16 @@ async function openFile(file) {
   try {
     setStatus("Opening " + file.name + "…");
     await interaction?.resetForDocumentChange();
-    documentReady = false;
     const buffer = await file.arrayBuffer();
     const wasmBytes = new Uint8Array(buffer);
     const viewerBytes = new Uint8Array(buffer.slice(0));
     let nextDocument = await openPdfDocument(wasmBytes);
+    let previousDocument = null;
     try {
-      documentHandle?.dispose();
-      documentHandle = null;
-      interaction.setDocument(null);
-      await viewer.openBytes(viewerBytes, { name: file.name });
       const annotations = nextDocument.listAnnotations();
       const metadata = nextDocument.metadata();
+      await viewer.openBytes(viewerBytes, { name: file.name });
+      previousDocument = documentHandle;
       documentHandle = nextDocument;
       nextDocument = null;
       interaction.setDocument(documentHandle);
@@ -278,6 +276,7 @@ async function openFile(file) {
       updateDocumentControls();
     } finally {
       nextDocument?.dispose();
+      if (previousDocument && previousDocument !== documentHandle) previousDocument.dispose();
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown PDF error";

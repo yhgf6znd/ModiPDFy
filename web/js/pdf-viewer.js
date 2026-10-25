@@ -139,10 +139,18 @@ export class PdfViewer {
     if (bytes.byteLength > MAX_PDF_INPUT_BYTES) {
       throw new RangeError("PDF input exceeds the browser limit.");
     }
-    await this.close();
+
     const generation = ++this.renderGeneration;
-    this.documentName = name;
-    this.onStatus("Opening PDF…");
+    const previousLoadingTask = this.loadingTask;
+    this.loadingTask = null;
+    if (previousLoadingTask) {
+      try {
+        await previousLoadingTask.destroy();
+      } catch {
+        // A superseded PDF.js load is no longer reachable.
+      }
+    }
+
     const loadingTask = pdfjsLib.getDocument({
       data: bytes,
       cMapUrl: new URL("../pdfjs/cmaps/", import.meta.url).href,
@@ -151,17 +159,34 @@ export class PdfViewer {
       isEvalSupported: false,
     });
     this.loadingTask = loadingTask;
+    let nextDocument;
+    let installed = false;
+    this.onStatus("Opening PDF…");
     try {
-      const document = await loadingTask.promise;
-      if (document.numPages > MAX_BROWSER_PAGE_COUNT) {
-        await document.destroy();
+      nextDocument = await loadingTask.promise;
+      if (nextDocument.numPages > MAX_BROWSER_PAGE_COUNT) {
+        await nextDocument.destroy();
+        nextDocument = null;
         throw new RangeError("This PDF contains too many pages for browser editing.");
       }
       if (generation !== this.renderGeneration) {
-        await document.destroy();
+        await nextDocument.destroy();
+        nextDocument = null;
         return;
       }
-      this.pdfDocument = document;
+
+      if (this.loadingTask === loadingTask) this.loadingTask = null;
+      await this.#clearCurrentDocument();
+      if (generation !== this.renderGeneration) {
+        await nextDocument.destroy();
+        nextDocument = null;
+        return;
+      }
+
+      this.documentName = name;
+      this.pdfDocument = nextDocument;
+      nextDocument = null;
+      installed = true;
       this.currentPageIndex = 0;
       this.scale = DEFAULT_SCALE;
       this.scaleMode = "manual";
@@ -169,22 +194,27 @@ export class PdfViewer {
       this.onPageCount(this.pageCount);
       this.onPageChange(this.pageNumber);
       this.onZoomChange(this.zoomPercent);
-      this.onStatus(`${this.pageCount} page${this.pageCount === 1 ? "" : "s"} ready.`);
+      this.onStatus(this.pageCount + " page" + (this.pageCount === 1 ? "" : "s") + " ready.");
       await this.#renderPage(0, generation);
     } catch (error) {
-      if (generation === this.renderGeneration) {
+      if (nextDocument) {
+        try {
+          await nextDocument.destroy();
+        } catch {
+          // Preserve the original load error.
+        }
+      }
+      if (installed && generation === this.renderGeneration) {
         try {
           await this.close();
         } catch {
-          // Preserve the original load/render error for the caller.
+          // Preserve the original load/render error.
         }
-        this.onStatus("Could not open this PDF.", "error");
       }
+      if (generation === this.renderGeneration) this.onStatus("Could not open this PDF.", "error");
       throw error;
     } finally {
-      if (this.loadingTask === loadingTask) {
-        this.loadingTask = null;
-      }
+      if (this.loadingTask === loadingTask) this.loadingTask = null;
     }
   }
 
@@ -199,6 +229,10 @@ export class PdfViewer {
         // PDF.js may reject destruction after a failed load; the task is no longer reachable.
       }
     }
+    await this.#clearCurrentDocument();
+  }
+
+  async #clearCurrentDocument() {
     for (const task of this.renderTasks.values()) {
       task.render?.cancel();
       task.text?.cancel?.();
@@ -216,9 +250,7 @@ export class PdfViewer {
     this.programmaticNavigation = 0;
     this.onPageCount(0);
     this.onPageChange(0);
-    if (document) {
-      await document.destroy();
-    }
+    if (document) await document.destroy();
   }
 
   async setZoom(scale) {
