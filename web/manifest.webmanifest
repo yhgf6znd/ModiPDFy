@@ -1,10 +1,17 @@
 {
   "name": "ModiPDFy",
   "short_name": "ModiPDFy",
+  "id": "./",
   "description": "A privacy-first PDF editor that runs in your browser.",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#eef2f7",
   "theme_color": "#172033",
-  "icons": []
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
 }

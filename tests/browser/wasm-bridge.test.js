@@ -61,9 +61,12 @@ async function run() {
 
   const registration = await navigator.serviceWorker.register(new URL("../../web/sw.js", import.meta.url), { scope: new URL("../../web/", import.meta.url).pathname });
   await waitForActivation(registration);
-  const shellCache = await caches.open("modipdfy-shell-v8");
-  for (const asset of ["main.js", "pdf-export.js", "pdfjs-loader.js", "history.js", "signature-pad.js", "signature-storage.js"]) {
+  const shellCache = await caches.open("modipdfy-shell-v9");
+  for (const asset of ["main.js", "pwa.js", "pdf-export.js", "pdfjs-loader.js", "history.js", "signature-pad.js", "signature-storage.js"]) {
     assert(await shellCache.match(new URL(`../../web/js/${asset}`, import.meta.url)), `offline cache is missing ${asset}`);
+  }
+  for (const asset of ["icon-192.png", "icon-512.png", "icon-maskable-512.png"]) {
+    assert(await shellCache.match(new URL(`../../web/icons/${asset}`, import.meta.url)), `offline cache is missing ${asset}`);
   }
 
   result.dataset.status = "pass";

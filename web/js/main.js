@@ -6,7 +6,8 @@ import { colorFromHex } from "./annotation-interaction.js";
 import { MAX_PDF_INPUT_BYTES, loadWasm, openPdfDocument } from "./wasm-client.js";
 import { downloadPdf, exportPdfBytes, suggestedFilename } from "./pdf-export.js";
 import { SignaturePad } from "./signature-pad.js";
-import { deleteStoredSignature, listStoredSignatures, saveStoredSignature } from "./signature-storage.js";
+import { clearStoredSignatures, deleteStoredSignature, listStoredSignatures, saveStoredSignature } from "./signature-storage.js";
+import { createPwaLifecycle } from "./pwa.js";
 
 const elements = {
   fileInput: document.querySelector("#file-input"),
@@ -34,6 +35,10 @@ const elements = {
   undo: document.querySelector("#undo"),
   redo: document.querySelector("#redo"),
   exportPdf: document.querySelector("#export-pdf"),
+  installApp: document.querySelector("#install-app"),
+  updateApp: document.querySelector("#update-app"),
+  connectivityStatus: document.querySelector("#connectivity-status"),
+  clearLocalData: document.querySelector("#clear-local-data"),
   toolButtons: [...document.querySelectorAll("[data-tool]")],
   signatureDialog: document.querySelector("#signature-dialog"),
   signatureCanvas: document.querySelector("#signature-canvas"),
@@ -54,11 +59,30 @@ let overlay;
 let interaction;
 let signaturePad;
 let storedSignatures = [];
+let pendingUpdateApply = null;
 
 function setStatus(message, state = "ready") {
   elements.status.textContent = message;
   elements.status.dataset.state = state;
 }
+
+function setConnectivity(online) {
+  elements.connectivityStatus.textContent = online ? "Online" : "Offline — cached editing remains available";
+  elements.connectivityStatus.dataset.state = online ? "online" : "offline";
+}
+
+const pwaLifecycle = createPwaLifecycle({
+  onConnectivityChange: setConnectivity,
+  onInstallAvailable(available) {
+    elements.installApp.hidden = !available;
+  },
+  onUpdateAvailable(apply) {
+    pendingUpdateApply = apply;
+    elements.updateApp.hidden = false;
+    setStatus("A new version is ready. Update when your document is saved.", "warning");
+  },
+  onStatus: setStatus,
+});
 
 function updateDocumentControls() {
   const hasDocument = currentPageCount > 0 && documentHandle;
@@ -238,6 +262,17 @@ async function refreshStoredSignatures() {
   }
 }
 
+async function clearLocalData() {
+  if (!globalThis.confirm("Clear saved signatures from this device?")) return;
+  try {
+    await clearStoredSignatures();
+    await refreshStoredSignatures();
+    setStatus("Saved signatures were cleared from this device.");
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Saved data could not be cleared.", "error");
+  }
+}
+
 function openSignatureDialog() {
   signaturePad.clear();
   elements.signatureSaveLocal.checked = false;
@@ -313,6 +348,15 @@ elements.signatureDeleteSaved.addEventListener("click", async () => {
     setStatus(error instanceof Error ? error.message : "The saved signature could not be deleted.", "error");
   }
 });
+elements.installApp.addEventListener("click", () => {
+  void pwaLifecycle.install();
+});
+elements.updateApp.addEventListener("click", () => {
+  if (!pendingUpdateApply) return;
+  if (currentPageCount > 0 && !globalThis.confirm("Update ModiPDFy now? Export your open document first.")) return;
+  pendingUpdateApply();
+});
+elements.clearLocalData.addEventListener("click", () => void clearLocalData());
 elements.signatureDialog.querySelector("form").addEventListener("submit", (event) => {
   event.preventDefault();
   void confirmSignature();
@@ -342,22 +386,13 @@ elements.fontSize.addEventListener("change", () => {
   if (selectedAnnotation && selectedAnnotation.annotationType === "Text") interaction.updateSelectedStyle({ fontSize: Number(elements.fontSize.value) });
 });
 
-async function registerServiceWorker() {
-  if (!("serviceWorker" in navigator)) return;
-  try {
-    await navigator.serviceWorker.register(new URL("../sw.js", import.meta.url));
-  } catch {
-    setStatus("PDF viewer ready; offline caching is unavailable in this browser.", "error");
-  }
-}
-
 async function boot() {
   try {
     const wasm = await loadWasm();
     elements.version.textContent = wasm.getVersion();
     setStatus("Ready. Open a local PDF to begin.");
     updateDocumentControls();
-    await registerServiceWorker();
+    void pwaLifecycle.start();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown startup error";
     setStatus(`The Rust/WASM core could not load: ${message}`, "error");

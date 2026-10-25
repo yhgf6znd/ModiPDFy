@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#172033">
     <meta name="description" content="A privacy-first PDF editor that runs in your browser.">
     <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png">
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./pdfjs/pdf_viewer.css">
     <title>ModiPDFy</title>
@@ -21,6 +23,8 @@
           <label class="button button-primary" for="file-input">Open PDF</label>
           <input id="file-input" type="file" accept="application/pdf,.pdf" hidden>
           <span id="document-name" class="document-name">No document open</span>
+          <button id="install-app" class="button" type="button" hidden>Install app</button>
+          <button id="update-app" class="button" type="button" hidden>Update available</button>
         </div>
       </header>
 
@@ -91,8 +95,14 @@
       </dialog>
 
       <footer class="app-footer">
-        <p id="status" class="status" role="status">Loading the Rust/WASM core…</p>
-        <p class="version-line">Core version: <span id="version">Loading…</span></p>
+        <div>
+          <p id="status" class="status" role="status">Loading the Rust/WASM core…</p>
+          <p class="version-line">Core version: <span id="version">Loading…</span></p>
+        </div>
+        <div class="footer-actions">
+          <span id="connectivity-status" class="connectivity-status" role="status" aria-live="polite">Checking connection…</span>
+          <button id="clear-local-data" class="button" type="button">Clear saved data</button>
+        </div>
       </footer>
     </div>
     <script type="module" src="./js/main.js"></script>

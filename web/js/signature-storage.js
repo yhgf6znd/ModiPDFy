@@ -37,3 +37,7 @@ export function saveStoredSignature(signature) {
 export function deleteStoredSignature(id) {
   return withStore("readwrite", (store) => store.delete(id));
 }
+
+export function clearStoredSignatures() {
+  return withStore("readwrite", (store) => store.clear());
+}

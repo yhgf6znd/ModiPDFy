@@ -36,6 +36,7 @@ run("wasm-pack", [
 ]);
 run(process.execPath, ["scripts/wasm-bridge-test.mjs"]);
 run(process.execPath, ["--check", "web/js/main.js"]);
+run(process.execPath, ["--check", "web/js/pwa.js"]);
 run(process.execPath, ["--check", "web/js/annotation-model.js"]);
 run(process.execPath, ["--check", "web/js/annotation-overlay.js"]);
 run(process.execPath, ["--check", "web/js/annotation-interaction.js"]);

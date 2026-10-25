@@ -18,8 +18,15 @@ const wasmModule = await WebAssembly.compile(wasmBytes);
 await initializeWasm({ module_or_path: wasmModule });
 assert.equal(translateWasmError(new RangeError("memory access out of bounds")).code, "memory_exhausted");
 const serviceWorkerSource = await readFile(new URL("../web/sw.js", import.meta.url), "utf8");
-assert(serviceWorkerSource.includes("modipdfy-shell-v8"), "service-worker cache version was not updated");
-for (const asset of ["main.js", "pdf-export.js", "pdfjs-loader.js", "history.js", "signature-pad.js", "signature-storage.js"]) {
+const manifest = JSON.parse(await readFile(new URL("../web/manifest.webmanifest", import.meta.url), "utf8"));
+assert.equal(manifest.start_url, "./");
+assert.equal(manifest.scope, "./");
+for (const icon of ["icon-192.png", "icon-512.png", "icon-maskable-512.png"]) {
+  assert(manifest.icons.some((entry) => entry.src === `./icons/${icon}`), `manifest does not declare ${icon}`);
+  assert((await stat(new URL(`../web/icons/${icon}`, import.meta.url))).isFile(), `missing ${icon}`);
+}
+assert(serviceWorkerSource.includes("modipdfy-shell-v9"), "service-worker cache version was not updated");
+for (const asset of ["main.js", "pwa.js", "pdf-export.js", "pdfjs-loader.js", "history.js", "signature-pad.js", "signature-storage.js"]) {
   assert(serviceWorkerSource.includes(`"./js/${asset}"`), `service worker does not precache ${asset}`);
 }
 

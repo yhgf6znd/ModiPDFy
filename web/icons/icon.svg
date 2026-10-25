@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ModiPDFy</title>
+  <desc id="desc">A document page with annotation marks</desc>
+  <rect width="512" height="512" rx="96" fill="#172033"/>
+  <path d="M145 80h166l72 72v280H145z" fill="#fff"/>
+  <path d="M311 80v72h72" fill="#9fc1f2"/>
+  <path d="M185 216h158M185 264h158M185 312h96" fill="none" stroke="#4266a8" stroke-linecap="round" stroke-width="24"/>
+  <path d="m190 382 54-42 39 26 59-66" fill="none" stroke="#d05b57" stroke-linecap="round" stroke-linejoin="round" stroke-width="22"/>
+</svg>
