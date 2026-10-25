@@ -385,8 +385,8 @@ function buildPageThumbnails(pageCount) {
     button.dataset.pageIndex = String(index);
     button.setAttribute("aria-label", "Go to page " + (index + 1));
     const canvas = document.createElement("canvas");
-    canvas.width = 136;
-    canvas.height = 192;
+    canvas.width = 1;
+    canvas.height = 1;
     canvas.setAttribute("aria-hidden", "true");
     const number = document.createElement("span");
     number.className = "thumbnail-number";
@@ -411,6 +411,11 @@ function updatePageThumbnail(pageIndex, state) {
   const button = [...elements.pageThumbnails.querySelectorAll(".thumbnail-button")].find((candidate) => Number(candidate.dataset.pageIndex) === pageIndex);
   if (!button || !state?.canvas) return;
   const canvas = button.querySelector("canvas");
+  if (canvas.width !== 136 || canvas.height !== 192) {
+    canvas.width = 136;
+    canvas.height = 192;
+  }
+  canvas.dataset.rendered = "true";
   const context = canvas.getContext("2d");
   if (!context) return;
   context.clearRect(0, 0, canvas.width, canvas.height);
