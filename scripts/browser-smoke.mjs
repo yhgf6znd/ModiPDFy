@@ -67,6 +67,9 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   assert(await page.locator("#toggle-pages").isVisible(), "mobile page toggle is not visible");
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), "mobile layout has horizontal overflow");
+  await page.setViewportSize({ width: 320, height: 700 });
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), "320px layout has horizontal overflow");
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.locator("#toggle-pages").tap();
   assert(await page.locator("#page-sidebar").evaluate((element) => element.classList.contains("is-open")), "touch page panel did not open");
   await page.locator("#close-pages").tap();
