@@ -50,7 +50,7 @@ Optimizations made in this review are limit-based and measured against failure r
 
 - The current browser viewer still creates a page shell and thumbnail control for every page up to the browser limit; very large documents may need virtualization in a future milestone.
 - PDF parsing remains an in-memory operation. Compressed-stream, object-count, output-size, and page-count limits reduce exposure but do not provide a CPU time budget or fuzzing guarantee.
-- Export rewrites edited PDFs through lopdf and rejects edits to encrypted or signed documents. Untouched encrypted/signed bytes can be returned, but the application does not claim cryptographic validity.
+- Export rewrites edited PDFs through lopdf and rejects edits to encrypted or signed documents. Untouched encrypted/signed bytes can be returned, but the application does not claim cryptographic validity. Moving or editing an imported supported annotation reconstructs the modeled fields and may not retain vendor-specific dictionary entries; in-place native annotation updates remain a future hardening task.
 - Native Acrobat/Reader testing was not rerun in this audit. The repository contains historical local Wine/Acrobat notes, but native Windows/macOS Acrobat coverage and complete visual regression across readers remain open. No document was uploaded to Adobe or another remote service.
 - The current test profile is Chromium-only for automated Playwright execution; Firefox and deployed GitHub Pages verification remain environment-specific follow-up work.
 
