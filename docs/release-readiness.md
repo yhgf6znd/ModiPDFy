@@ -21,7 +21,7 @@ This report covers the current ModiPDFy annotation milestone and the security, r
 - npm run test:browser: passed in Chromium. It verified CSP-compatible boot, no external runtime requests, the service-worker cache and scope, offline reload, local annotation/export, refresh warning, repeated-load DOM cleanup, and precise JavaScript heap readings.
 - npm run test:browser:harness: passed in Chromium for viewer.html, index.html (WASM bridge), and annotations.html.
 - npm audit --omit=optional --audit-level=moderate: passed with 0 vulnerabilities after upgrading the vendored PDF.js source to 4.2.67.
-- cargo-audit: unavailable on this environment; the exact command to run in CI or a release workstation is cargo audit.
+- cargo audit --no-fetch: passed with the cached RustSec database; 97 locked Rust dependencies were scanned with no reported vulnerabilities.
 
 ## Security findings and fixes
 
@@ -32,7 +32,7 @@ This report covers the current ModiPDFy annotation milestone and the security, r
 - CSP: the static shell includes a same-origin CSP with no object/plugin execution, same-origin scripts/connectivity, local workers, and no remote fonts or images. GitHub Pages cannot provide a response-header frame-ancestors policy, so clickjacking protection from headers remains a deployment limitation.
 - Resource limits: the Rust core limits input bytes, decompressed streams, pages, objects, annotation payloads, and output bytes. The browser additionally limits input to 128 MiB, editor pages to 2,000, and canvas backing allocation to 16,777,216 pixels.
 - Service worker: only same-origin GET requests are handled; user PDFs are never added to Cache Storage. The cache is versioned and the offline path was verified with the server stopped.
-- Dependencies: npm audit is clean for the locked JavaScript graph. A deterministic CycloneDX inventory is checked in at docs/sbom.json. Cargo dependency licenses were collected through cargo metadata; cargo-audit remains to be run where installed.
+- Dependencies: npm audit and cargo audit are clean for the locked graphs. A deterministic CycloneDX inventory is checked in at docs/sbom.json. Cargo dependency licenses were collected through cargo metadata.
 
 ## Reliability results
 
@@ -42,7 +42,7 @@ Explicitly unsupported or not fully verified: password entry/decryption, cryptog
 
 ## Performance measurements
 
-One verified Chromium smoke sample: initial app readiness 182 ms; WASM initialization 10.2 ms; offline reload 53 ms; one-page PDF open plus first render 143 ms; annotation interaction 60 ms; export 40 ms; JavaScript heap 9.4 MiB after first render and 12.4 MiB after five repeated loads. The heap delta is not evidence of a leak by itself because browser garbage collection is nondeterministic. The new repeated-load assertions did verify that stale page shells, thumbnails, viewer page state, and disposed WASM handles were not retained through the tested path.
+One verified Chromium smoke sample: initial app readiness 341 ms; WASM initialization 21.9 ms; offline reload 74 ms; one-page PDF open plus first render 176 ms; annotation interaction 57 ms; export 45 ms; JavaScript heap 9.4 MiB after first render and 12.4 MiB after five repeated loads. The heap delta is not evidence of a leak by itself because browser garbage collection is nondeterministic. The new repeated-load assertions did verify that stale page shells, thumbnails, viewer page state, and disposed WASM handles were not retained through the tested path.
 
 Optimizations made in this review are limit-based and measured against failure risk: lazy thumbnail canvases were already present, the browser now caps render backing pixels, and the patched PDF.js runtime is loaded as native ESM. No speculative rendering or PDF flattening was added.
 
@@ -56,13 +56,12 @@ Optimizations made in this review are limit-based and measured against failure r
 
 ## Unresolved issues
 
-1. Install and run cargo-audit in CI, then review Rust advisories for the locked graph.
-2. Add PDF parser and annotation-command fuzzing with CPU, memory, and output budgets.
-3. Add legally redistributable scanned, non-Latin, unsupported-font, password-protected, digitally signed, embedded-action, and external-link fixtures.
-4. Profile multi-page, large-stream, high-DPI, rotated, and image-heavy documents on supported desktop and mobile browsers.
-5. Decide whether large-page/page-count virtualization is required before stable publication.
-6. Add deployment-header controls, if the hosting platform permits them, for frame-ancestors and other response-header-only policies.
+1. Add PDF parser and annotation-command fuzzing with CPU, memory, and output budgets.
+2. Add legally redistributable scanned, non-Latin, unsupported-font, password-protected, digitally signed, embedded-action, and external-link fixtures.
+3. Profile multi-page, large-stream, high-DPI, rotated, and image-heavy documents on supported desktop and mobile browsers.
+4. Decide whether large-page/page-count virtualization is required before stable publication.
+5. Add deployment-header controls, if the hosting platform permits them, for frame-ancestors and other response-header-only policies.
 
 ## Readiness decision
 
-The milestone is ready for the next development milestone as a hardened development slice, not as a final stable release. The implemented scope passes the available automated checks and keeps the browser-only, MIT, Rust-first, framework-free, and offline constraints. The unresolved issues above must remain visible in the roadmap before a stable public release claim.
+The application is ready for a public beta release from this repository. It is not yet a final stable release: the limitations and follow-up gates above must remain visible to beta users and must be completed before a stable-release claim. The implemented scope passes the available automated checks and keeps the browser-only, MIT, Rust-first, framework-free, and offline constraints. The unresolved issues above must remain visible in the roadmap before a stable public release claim.

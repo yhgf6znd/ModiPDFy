@@ -52,7 +52,7 @@ Exit evidence: keyboard and pointer workflows are accessible; committed-state ex
 
 ## Phase 4 — hardening and publication
 
-Status: in progress — this review added dependency, CSP, resource-limit, offline, refresh, repeated-load, and local performance hardening; fuzzing, broad fixtures, and deployed release verification remain open.
+Status: beta-ready from the current repository — dependency/CSP/resource-limit/offline/refresh/repeated-load hardening and CI security gates are in place; fuzzing, broad fixtures, and deployed release verification remain open before stable publication.
 
 - Fuzz PDF parsing and command decoding.
 - Verify the deployed GitHub Pages artifact and repeat the offline/update regression on supported release browsers.

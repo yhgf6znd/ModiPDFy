@@ -31,11 +31,23 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --version 0.14.0 --locked
 
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --version 0.22.2 --locked
+
       - name: Install independent PDF verification tools
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y ghostscript poppler-utils
 
       - name: Install Node.js dependencies
         run: npm ci
+
+      - name: Audit Rust dependencies
+        run: cargo audit
+
+      - name: Audit JavaScript dependencies
+        run: npm audit --omit=optional --audit-level=moderate
+
+      - name: Generate and verify SBOM
+        run: npm run generate:sbom && git diff --exit-code -- docs/sbom.json
 
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
@@ -63,3 +75,6 @@ jobs:
 
       - name: Run production browser smoke test
         run: npm run test:browser
+
+      - name: Run browser integration harness
+        run: npm run test:browser:harness

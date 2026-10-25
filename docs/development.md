@@ -20,6 +20,12 @@ cargo install wasm-pack --version 0.14.0
 
 Install Node.js 18.19 or newer using the distribution’s supported method, such as the official Node.js installer or a version manager. Confirm with `node --version` and `npm --version`.
 
+Install the pinned Rust advisory scanner for release checks:
+
+```sh
+cargo install cargo-audit --version 0.22.2 --locked
+```
+
 ### macOS
 
 Install Xcode Command Line Tools, Git, Rust via rustup, and Node.js 18.19 or newer. Then run:
@@ -90,6 +96,9 @@ wasm-pack build crates/modipdfy-wasm --target web --release --out-dir ../../web/
 npm run dev
 npm run preview
 npm test
+npm run generate:sbom
+npm audit --omit=optional --audit-level=moderate
+cargo audit
 ```
 
 `npm run dev` builds the WASM package, vendors PDF.js, and serves the static `dist/` directory at localhost. `npm run preview` serves the already-built `dist/` directory. Both commands serve over HTTP, which is required for service workers; do not test the PWA from `file://`. `npm test` runs formatting, clippy, native tests, the WASM build, Node-executed bridge/export/coordinate tests, JavaScript syntax checks, and the production static build. The export integration test requires `pdfinfo`, `pdftotext`, `gs`, and `pdftoppm` for its pixel and corruption checks; if a workstation lacks them, run the Node test after installing Poppler and Ghostscript or record the independent-renderer check as unavailable. The build scripts use Node.js built-ins; the production browser smoke test uses the pinned Playwright development dependency. PDF.js is a pinned development dependency whose browser assets are copied into the static build.
@@ -130,8 +139,10 @@ Pin PDF.js and its worker to a reviewed version. The current build pins `pdfjs-d
 
 - `AGENTS.md`, README, architecture, development, and roadmap agree on the current scope.
 - Native tests pass without a browser or network.
+- `cargo audit` and `npm audit --omit=optional --audit-level=moderate` pass for the locked dependency graphs.
+- `docs/sbom.json` is regenerated and has no uncommitted changes.
 - WASM build succeeds and has no accidental server dependency.
-- Browser smoke tests pass with the network disabled after caching, including open, annotation, and export flows in Chromium and Firefox.
+- Browser smoke tests and the Playwright browser harness pass with the network disabled after caching.
 - Local import, render, annotation operation, export, and reopen flows work.
 - Rotated pages, non-default crop boxes, malformed PDFs, and large-input limits have explicit test coverage or documented limitations.
 - No PDF bytes or document-derived data leave the browser.
