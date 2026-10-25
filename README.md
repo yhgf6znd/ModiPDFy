@@ -63,7 +63,14 @@ npm test
 npm run validate:build
 ```
 
-The browser harnesses in `tests/browser/` should also be opened over the local HTTP server for viewer, annotation, and service-worker smoke testing.
+The production smoke test can be run with Chromium after installing its browser binary:
+
+```sh
+npx playwright install chromium
+npm run test:browser
+```
+
+The other browser harnesses in `tests/browser/` should also be opened over the local HTTP server for viewer, annotation, and service-worker smoke testing.
 
 ## GitHub Pages deployment
 

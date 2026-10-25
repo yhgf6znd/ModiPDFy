@@ -60,6 +60,7 @@ run(process.execPath, ["--check", "scripts/build-web.mjs"]);
 run(process.execPath, ["--check", "scripts/copy-pdfjs.mjs"]);
 run(process.execPath, ["--check", "scripts/serve.mjs"]);
 run(process.execPath, ["--check", "scripts/validate-build.mjs"]);
+run(process.execPath, ["--check", "scripts/browser-smoke.mjs"]);
 run(process.execPath, ["--check", "scripts/test.mjs"]);
 run(process.execPath, ["scripts/copy-pdfjs.mjs"]);
 run(process.execPath, ["scripts/build-web.mjs"]);

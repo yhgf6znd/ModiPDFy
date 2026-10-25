@@ -63,6 +63,12 @@ jobs:
           PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
         run: npm run validate:build
 
+      - name: Install Chromium for production smoke test
+        run: npx playwright install --with-deps chromium
+
+      - name: Run production browser smoke test
+        run: npm run test:browser
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:

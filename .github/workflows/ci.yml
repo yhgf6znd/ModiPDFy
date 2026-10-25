@@ -57,3 +57,9 @@ jobs:
 
       - name: Validate generated static assets
         run: npm run validate:build
+
+      - name: Install Chromium for production smoke test
+        run: npx playwright install --with-deps chromium
+
+      - name: Run production browser smoke test
+        run: npm run test:browser
