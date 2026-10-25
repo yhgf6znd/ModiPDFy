@@ -42,7 +42,7 @@ Explicitly unsupported or not fully verified: password entry/decryption, cryptog
 
 ## Performance measurements
 
-One verified Chromium smoke sample: initial app readiness 172 ms; WASM initialization 9.6 ms; offline reload 53 ms; one-page PDF open plus first render 144 ms; annotation interaction 58 ms; export 42 ms; JavaScript heap 9.4 MiB after first render and 12.1 MiB after five repeated loads. The heap delta is not evidence of a leak by itself because browser garbage collection is nondeterministic. The new repeated-load assertions did verify that stale page shells, thumbnails, viewer page state, and disposed WASM handles were not retained through the tested path.
+One verified Chromium smoke sample: initial app readiness 166 ms; WASM initialization 10.7 ms; offline reload 58 ms; one-page PDF open plus first render 151 ms; annotation interaction 61 ms; export 50 ms; JavaScript heap 9.4 MiB after first render and 12.2 MiB after five repeated loads. The heap delta is not evidence of a leak by itself because browser garbage collection is nondeterministic. The new repeated-load assertions did verify that stale page shells, thumbnails, viewer page state, and disposed WASM handles were not retained through the tested path.
 
 Optimizations made in this review are limit-based and measured against failure risk: lazy thumbnail canvases were already present, the browser now caps render backing pixels, and the patched PDF.js runtime is loaded as native ESM. No speculative rendering or PDF flattening was added.
 
