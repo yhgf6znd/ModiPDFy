@@ -37,10 +37,12 @@ The Rust core is independent of WebAssembly. `wasm-bindgen` exposes a small, ver
 - [`docs/architecture.md`](docs/architecture.md) — system design, data contracts, coordinate rules, and security model.
 - [`docs/development.md`](docs/development.md) — local workflow, testing, dependency review, and release checks.
 - [`docs/roadmap.md`](docs/roadmap.md) — staged delivery plan and unresolved risks.
+- [`docs/release-readiness.md`](docs/release-readiness.md) — verified security, reliability, performance, and release evidence.
+- [`docs/sbom.json`](docs/sbom.json) — deterministic CycloneDX dependency inventory.
 
 ## Local development and build
 
-Install the pinned Rust toolchain, `wasm-pack`, Node.js 20 or newer, and npm. Then install the locked JavaScript dependencies:
+Install the pinned Rust toolchain, `wasm-pack`, Node.js 18.19 or newer, and npm. Then install the locked JavaScript dependencies:
 
 ```sh
 npm ci
@@ -61,6 +63,7 @@ Run the full Rust, WASM, JavaScript, PDF interoperability, and static-build suit
 ```sh
 npm test
 npm run validate:build
+npm run generate:sbom
 ```
 
 The production smoke test can be run with Chromium after installing its browser binary:
@@ -68,9 +71,10 @@ The production smoke test can be run with Chromium after installing its browser 
 ```sh
 npx playwright install chromium
 npm run test:browser
+npm run test:browser:harness
 ```
 
-The other browser harnesses in `tests/browser/` should also be opened over the local HTTP server for viewer, annotation, and service-worker smoke testing.
+The Playwright harness command executes the viewer, WASM bridge, and annotation pages. The other browser harnesses in `tests/browser/` can also be opened over the local HTTP server for inspection.
 
 ## GitHub Pages deployment
 

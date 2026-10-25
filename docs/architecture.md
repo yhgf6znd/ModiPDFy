@@ -272,3 +272,13 @@ The current `modipdfy-core` engine supports inspection plus native Text/FreeText
 - Dirty saves of documents containing detected PDF signatures are blocked. Untouched signed inputs can still be returned byte-for-byte.
 - Ink and highlight appearance streams use standard PDF graphics and ExtGState opacity, while text appearances use the standard Helvetica Type1 font. Unicode text is preserved in `/Contents`, but the appearance fallback is limited by the standard font and needs a future embedded-font policy for full glyph coverage.
 - Incremental-update preservation and annotation appearance garbage collection after removal remain future work; bounded logical operation history and undo/redo are implemented in the browser session layer.
+
+## 14. Security and resource controls
+
+Imported PDFs are untrusted data. The native core catches parser panics, bounds decompressed streams, object counts, page counts, annotation payloads, and serialized output, while the browser boundary rejects empty or oversized buffers before PDF.js or WASM processing. The browser viewer adds a 2,000-page editor limit and caps canvas backing allocation at 16,777,216 pixels; these are explicit browser-capability limits, not claims that every large PDF is supported.
+
+PDF.js is vendored from the pinned 4.2.67 ESM package and loaded from the same origin. Imported PDF scripting is disabled at both the parser/rendering configuration and annotation-layer configuration. Annotation links go through a local safe link service: only http/https links are exposed, with a new-tab target and noopener/noreferrer/nofollow; invalid or executable schemes are inert and no URL is fetched automatically.
+
+The static shell carries a same-origin Content Security Policy with object/plugin execution disabled, same-origin scripts and connections, local workers, and local/data/blob rendering sources required by the viewer. Header-only policies such as frame-ancestors cannot be supplied by a plain GitHub Pages static artifact and remain a deployment limitation.
+
+The service worker handles only same-origin GET requests, precaches only generated application assets, uses versioned cache names, and never caches user-selected PDF bytes. Performance marks stay in the local Performance API and are not transmitted.
