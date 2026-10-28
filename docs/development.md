@@ -86,6 +86,8 @@ npm run build
 
 It runs `wasm-pack build --target web`, then copies the web shell and generated WASM files into `dist/`. The output uses relative URLs and can be uploaded directly to a static host, including a GitHub Pages project subpath.
 
+For Cloudflare Pages, use `bash scripts/cloudflare-build.sh` as the build command and `dist` as the output directory. Cloudflare’s Node build image does not include `wasm-pack`; the wrapper installs the pinned Rust 1.93.0 toolchain and `wasm-pack 0.14.0` when necessary, selects that toolchain, and delegates to `npm run build`. This is a build-time tool installation only; the deployed artifact remains static and browser-only.
+
 Useful commands:
 
 ```sh

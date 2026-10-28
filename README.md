@@ -56,6 +56,10 @@ npm run build
 
 The deployable files are written to `dist/`. The command builds the Rust/WASM package, vendors the pinned PDF.js runtime and worker, copies the framework-free frontend, and keeps all asset references relative so the result works at a GitHub Pages project subpath or domain root. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
 
+### Cloudflare Pages
+
+Cloudflare Pages does not provide `wasm-pack` in its Node build image. Configure the Pages project with build command `bash scripts/cloudflare-build.sh` and output directory `dist`. The wrapper installs the pinned Rust 1.93.0 toolchain and `wasm-pack 0.14.0` only when missing, then runs the same static build; no Worker, backend, or document upload is involved. Set the Pages project’s production branch to `main` and leave the build environment’s Node.js version at 20 or newer.
+
 ## Tests
 
 Run the full Rust, WASM, JavaScript, PDF interoperability, and static-build suite with:
