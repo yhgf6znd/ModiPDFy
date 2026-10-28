@@ -22,4 +22,4 @@ if [[ "${wasm_pack_installed_version}" != "wasm-pack ${wasm_pack_version}" ]]; t
 fi
 
 export RUSTUP_TOOLCHAIN="${rust_toolchain}"
-npm run build
+npm run build:static

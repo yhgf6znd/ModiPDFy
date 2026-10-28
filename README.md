@@ -54,11 +54,11 @@ Build the complete static application with:
 npm run build
 ```
 
-The deployable files are written to `dist/`. The command builds the Rust/WASM package, vendors the pinned PDF.js runtime and worker, copies the framework-free frontend, and keeps all asset references relative so the result works at a static-host subpath or domain root. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
+The deployable files are written to `dist/`. The command bootstraps the pinned Rust/WASM build tools when needed, builds the Rust/WASM package, vendors the pinned PDF.js runtime and worker, copies the framework-free frontend, and keeps all asset references relative so the result works at a static-host subpath or domain root. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
 
 ### Cloudflare Pages
 
-Cloudflare Pages does not provide `wasm-pack` in its Node build image. Configure the Pages project with build command `bash scripts/cloudflare-build.sh` and output directory `dist`. The wrapper installs the pinned Rust 1.93.0 toolchain and `wasm-pack 0.14.0` only when missing, then runs the same static build; no Worker, backend, or document upload is involved. Set the Pages project’s production branch to `main` and leave the build environment’s Node.js version at 20 or newer.
+Cloudflare Pages does not provide `wasm-pack` in its Node build image. The repository’s `npm run build` command now invokes the bootstrap wrapper, so an existing Pages setting of `npm run build` is supported. You may also configure the build command explicitly as `bash scripts/cloudflare-build.sh`; both paths write the artifact to `dist/`. The wrapper installs the pinned Rust 1.93.0 toolchain and `wasm-pack 0.14.0` only when missing, then runs the static build; no Worker, backend, or document upload is involved. Set the Pages project’s production branch to `main` and leave the build environment’s Node.js version at 20 or newer.
 
 ## Tests
 
@@ -84,7 +84,7 @@ The Playwright harness command executes the viewer, WASM bridge, and annotation 
 
 `.github/workflows/ci.yml` runs on every push and pull request. It installs Rust, the `wasm32-unknown-unknown` target, `wasm-pack`, Node.js dependencies, PDF verification tools, and validates the generated static application.
 
-Create a Cloudflare Pages project from the repository with production branch `main`, build command `bash scripts/cloudflare-build.sh`, and build output directory `dist`. The wrapper installs the pinned Rust 1.93.0 toolchain and `wasm-pack 0.14.0` when Cloudflare’s Node build image does not provide them, then builds the same static artifact. Cloudflare Pages serves the immutable frontend only; no Worker, backend, application secret, document upload, or document-processing service is required.
+Create a Cloudflare Pages project from the repository with production branch `main`, build command `npm run build` or `bash scripts/cloudflare-build.sh`, and build output directory `dist`. The bootstrap wrapper installs the pinned Rust 1.93.0 toolchain and `wasm-pack 0.14.0` when Cloudflare’s Node build image does not provide them, then builds the same static artifact. Cloudflare Pages serves the immutable frontend only; no Worker, backend, application secret, document upload, or document-processing service is required.
 
 ## Offline installation
 
@@ -95,7 +95,7 @@ Open the HTTPS or localhost site once while online and wait for the shell cache 
 - If `npm ci` fails, use a supported Node.js version and remove only the local `node_modules/` directory before retrying.
 - If the WASM build fails, install the pinned Rust target and `wasm-pack 0.14.0`; native Rust tests do not require the WASM target.
 - If the service worker does not install, serve the app over HTTPS or `localhost`, reload once online, and inspect the browser’s Application/Storage panel for failed precache assets.
-- If a Cloudflare Pages deployment is missing assets, confirm the build command is `bash scripts/cloudflare-build.sh`, the output directory is `dist`, and inspect the generated artifact with `npm run validate:build`.
+- If a Cloudflare Pages deployment is missing assets, confirm the build command is `npm run build` or `bash scripts/cloudflare-build.sh`, the output directory is `dist`, and inspect the generated artifact with `npm run validate:build`.
 - To recover from stale application assets, use the browser’s site-data controls or ModiPDFy’s “Clear saved data” action, then reload online.
 
 ## Planned technology
