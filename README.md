@@ -1,6 +1,6 @@
 # ModiPDFy
 
-ModiPDFy is a free, open-source, privacy-first PDF editor that runs entirely in the browser. It is designed for GitHub Pages and offline use: PDF files are opened from local browser APIs, rendered with Mozilla PDF.js, modified by a Rust/WASM core, and saved back to the user’s device.
+ModiPDFy is a free, open-source, privacy-first PDF editor that runs entirely in the browser. It is designed for Cloudflare Pages and offline use: PDF files are opened from local browser APIs, rendered with Mozilla PDF.js, modified by a Rust/WASM core, and saved back to the user’s device.
 
 The initial release is intentionally focused:
 
@@ -54,7 +54,7 @@ Build the complete static application with:
 npm run build
 ```
 
-The deployable files are written to `dist/`. The command builds the Rust/WASM package, vendors the pinned PDF.js runtime and worker, copies the framework-free frontend, and keeps all asset references relative so the result works at a GitHub Pages project subpath or domain root. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
+The deployable files are written to `dist/`. The command builds the Rust/WASM package, vendors the pinned PDF.js runtime and worker, copies the framework-free frontend, and keeps all asset references relative so the result works at a static-host subpath or domain root. Run `npm run dev` for a local development server or `npm run preview` to serve the production build.
 
 ### Cloudflare Pages
 
@@ -80,13 +80,11 @@ npm run test:browser:harness
 
 The Playwright harness command executes the viewer, WASM bridge, and annotation pages. The other browser harnesses in `tests/browser/` can also be opened over the local HTTP server for inspection.
 
-## GitHub Pages deployment
+## Cloudflare Pages deployment
 
 `.github/workflows/ci.yml` runs on every push and pull request. It installs Rust, the `wasm32-unknown-unknown` target, `wasm-pack`, Node.js dependencies, PDF verification tools, and validates the generated static application.
 
-`.github/workflows/deploy.yml` builds and deploys `dist/` to GitHub Pages when `main` changes. The workflow obtains the Pages base path from `actions/configure-pages`; the application itself uses relative asset URLs, so the same build works at `/modipdfy/` and at a domain root without hardcoding a GitHub username.
-
-To enable deployment, set the repository’s Pages “Build and deployment” source to “GitHub Actions” before the first run. This is a one-time repository setting: `actions/configure-pages` reads the existing Pages site and the default `GITHUB_TOKEN` is intentionally not used to create or administer a new Pages site. The deployment job requires the standard `github-pages` environment and the workflow permissions for `pages: write` and `id-token: write`; no application secrets or backend service are required. After Pages is enabled, the workflow obtains the configured base path, builds relative assets, tests that exact path, uploads `dist/`, and deploys it.
+Create a Cloudflare Pages project from the repository with production branch `main`, build command `bash scripts/cloudflare-build.sh`, and build output directory `dist`. The wrapper installs the pinned Rust 1.93.0 toolchain and `wasm-pack 0.14.0` when Cloudflare’s Node build image does not provide them, then builds the same static artifact. Cloudflare Pages serves the immutable frontend only; no Worker, backend, application secret, document upload, or document-processing service is required.
 
 ## Offline installation
 
@@ -97,7 +95,7 @@ Open the HTTPS or localhost site once while online and wait for the shell cache 
 - If `npm ci` fails, use a supported Node.js version and remove only the local `node_modules/` directory before retrying.
 - If the WASM build fails, install the pinned Rust target and `wasm-pack 0.14.0`; native Rust tests do not require the WASM target.
 - If the service worker does not install, serve the app over HTTPS or `localhost`, reload once online, and inspect the browser’s Application/Storage panel for failed precache assets.
-- If a Pages deployment is missing assets, confirm the Pages source is “GitHub Actions” and inspect the workflow’s generated base path and `dist/` validation output.
+- If a Cloudflare Pages deployment is missing assets, confirm the build command is `bash scripts/cloudflare-build.sh`, the output directory is `dist`, and inspect the generated artifact with `npm run validate:build`.
 - To recover from stale application assets, use the browser’s site-data controls or ModiPDFy’s “Clear saved data” action, then reload online.
 
 ## Planned technology
@@ -106,7 +104,7 @@ Open the HTTPS or localhost site once while online and wait for the shell cache 
 - `wasm-bindgen` and `wasm-pack` for the browser boundary.
 - HTML5, CSS, and native JavaScript ES modules.
 - Mozilla PDF.js for rendering and text selection geometry.
-- GitHub Pages with a service worker and web app manifest for offline-capable static hosting. The install prompt is optional browser enhancement; the app remains usable through the browser and local download path.
+- Cloudflare Pages with a service worker and web app manifest for offline-capable static hosting. The install prompt is optional browser enhancement; the app remains usable through the browser and local download path.
 - MIT license for the project, subject to the notices and license terms of bundled dependencies and assets.
 
 ## Privacy promise

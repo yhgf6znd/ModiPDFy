@@ -30,7 +30,6 @@ const publicBasePath = normalizeBasePath(process.env.PUBLIC_BASE_PATH);
 assert(existsSync(outputDirectory), "The dist directory does not exist. Run the production build first.");
 
 for (const asset of [
-  ".nojekyll",
   "index.html",
   "css/main.css",
   "js/main.js",
@@ -53,8 +52,8 @@ for (const asset of [
 ]) requireFile(asset);
 
 const manifest = JSON.parse(read("manifest.webmanifest"));
-assert(manifest.start_url === "./", "The manifest start_url must remain relative for root and project Pages deployments.");
-assert(manifest.scope === "./", "The manifest scope must remain relative for root and project Pages deployments.");
+assert(manifest.start_url === "./", "The manifest start_url must remain relative for root and project static-host deployments.");
+assert(manifest.scope === "./", "The manifest scope must remain relative for root and project static-host deployments.");
 for (const icon of manifest.icons ?? []) requireFile(icon.src.replace(/^\.\//, ""));
 
 const assetManifest = JSON.parse(read("pdfjs/asset-manifest.json"));

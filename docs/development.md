@@ -66,7 +66,7 @@ tests/
 docs/
 ```
 
-Do not add generated `wasm-pack` output to the source tree unless the deployment process explicitly requires checked-in artifacts. If GitHub Pages is built by CI, publish generated artifacts from the build directory and keep reproducibility metadata in the repository.
+Do not add generated `wasm-pack` output to the source tree unless the deployment process explicitly requires checked-in artifacts. If the static site is built by CI or Cloudflare Pages, publish generated artifacts from the build directory and keep reproducibility metadata in the repository.
 
 ## Local workflow
 
@@ -84,7 +84,7 @@ The complete production build is:
 npm run build
 ```
 
-It runs `wasm-pack build --target web`, then copies the web shell and generated WASM files into `dist/`. The output uses relative URLs and can be uploaded directly to a static host, including a GitHub Pages project subpath.
+It runs `wasm-pack build --target web`, then copies the web shell and generated WASM files into `dist/`. The output uses relative URLs and can be uploaded directly to a static host, including a project subpath.
 
 For Cloudflare Pages, use `bash scripts/cloudflare-build.sh` as the build command and `dist` as the output directory. Cloudflare’s Node build image does not include `wasm-pack`; the wrapper installs the pinned Rust 1.93.0 toolchain and `wasm-pack 0.14.0` when necessary, selects that toolchain, and delegates to `npm run build`. This is a build-time tool installation only; the deployed artifact remains static and browser-only.
 
@@ -105,7 +105,7 @@ cargo audit
 
 `npm run dev` builds the WASM package, vendors PDF.js, and serves the static `dist/` directory at localhost. `npm run preview` serves the already-built `dist/` directory. Both commands serve over HTTP, which is required for service workers; do not test the PWA from `file://`. `npm test` runs formatting, clippy, native tests, the WASM build, Node-executed bridge/export/coordinate tests, JavaScript syntax checks, and the production static build. The export integration test requires `pdfinfo`, `pdftotext`, `gs`, and `pdftoppm` for its pixel and corruption checks; if a workstation lacks them, run the Node test after installing Poppler and Ghostscript or record the independent-renderer check as unavailable. The build scripts use Node.js built-ins; the production browser smoke test uses the pinned Playwright development dependency. PDF.js is a pinned development dependency whose browser assets are copied into the static build.
 
-The production browser smoke test is `npm run test:browser`; it starts an isolated static host under `/modipdfy/` by default, verifies the manifest, service-worker scope, WASM, PDF.js worker, cached assets, and absence of external runtime requests, then stops the server and checks offline open, annotation, and export. Set `PUBLIC_BASE_PATH=/` or another safe absolute path to exercise a different deployment root; the smoke host mirrors that path so the test covers the same URL shape that GitHub Pages will serve. The browser integration harness is [`tests/browser/index.html`](../tests/browser/index.html). It also checks the active versioned shell cache, PWA module, manifest icons, and cached icon files. For a true offline test, load the production app once, stop the static server or disable the network, reload the app, then open a local fixture, annotate, and export. Repeat this on Chromium and Firefox. A GitHub Pages subpath test should serve the built files below `/modipdfy/` and verify that the manifest, service worker, WASM, PDF.js worker, CMaps, fonts, and icons resolve below that path. The maintained Playwright runner for all browser harness pages is `npm run test:browser:harness`. It executes the viewer, WASM bridge, and annotation interaction pages in Chromium. The annotation interaction harness is [`tests/browser/annotations.html`](../tests/browser/annotations.html). To run them in a browser, build the project, serve the repository root, and open the relevant page:
+The production browser smoke test is `npm run test:browser`; it starts an isolated static host under `/modipdfy/` by default, verifies the manifest, service-worker scope, WASM, PDF.js worker, cached assets, and absence of external runtime requests, then stops the server and checks offline open, annotation, and export. Set `PUBLIC_BASE_PATH=/` or another safe absolute path to exercise a different deployment root; the smoke host mirrors that path so the test covers the same URL shape that the static host will serve. The browser integration harness is [`tests/browser/index.html`](../tests/browser/index.html). It also checks the active versioned shell cache, PWA module, manifest icons, and cached icon files. For a true offline test, load the production app once, stop the static server or disable the network, reload the app, then open a local fixture, annotate, and export. Repeat this on Chromium and Firefox. A static-host subpath test should serve the built files below `/modipdfy/` and verify that the manifest, service worker, WASM, PDF.js worker, CMaps, fonts, and icons resolve below that path. The maintained Playwright runner for all browser harness pages is `npm run test:browser:harness`. It executes the viewer, WASM bridge, and annotation interaction pages in Chromium. The annotation interaction harness is [`tests/browser/annotations.html`](../tests/browser/annotations.html). To run them in a browser, build the project, serve the repository root, and open the relevant page:
 
 ```sh
 npm run build
@@ -148,6 +148,6 @@ Pin PDF.js and its worker to a reviewed version. The current build pins `pdfjs-d
 - Local import, render, annotation operation, export, and reopen flows work.
 - Rotated pages, non-default crop boxes, malformed PDFs, and large-input limits have explicit test coverage or documented limitations.
 - No PDF bytes or document-derived data leave the browser.
-- Service-worker cache versioning, explicit update activation, cache cleanup, and GitHub Pages base paths are verified.
+- Service-worker cache versioning, explicit update activation, cache cleanup, and static-host base paths are verified.
 - Third-party notices and the MIT license are present in the release artifact.
 - The production bundle contains no debug logging of document data and no analytics/telemetry.

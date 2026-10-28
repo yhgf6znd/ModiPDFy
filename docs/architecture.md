@@ -11,7 +11,7 @@ ModiPDFy is a static, client-only web application. Its trusted editing path is:
 5. JavaScript keeps completed editor commands in a browser-side command model, sends those completed commands to Rust, and renders temporary interaction previews in an overlay.
 6. Rust exports PDF bytes, which JavaScript offers as a local download or File System Access API save.
 
-There is no application backend, account system, document sync, remote conversion service, or telemetry pipeline. GitHub Pages serves immutable static assets only.
+There is no application backend, account system, document sync, remote conversion service, or telemetry pipeline. Cloudflare Pages serves immutable static assets only.
 
 The core release must preserve existing page content. A simple annotation must be represented as a PDF annotation object or an equivalent object-preserving PDF update; rasterizing a whole page is not an acceptable shortcut.
 
@@ -235,7 +235,7 @@ Every export feature needs a round-trip test: export, reopen through `modipdfy-c
 
 The app is a static site with a web app manifest and service worker. The service worker precaches the shell, CSS, JavaScript, pinned PDF.js assets, WASM binary, icons, and manifest. Cache names are versioned and old caches are removed only during an explicit activate step.
 
-The service worker must use the GitHub Pages repository base path correctly; asset URLs are generated from the deployed base path, not assumed to be rooted at `/`. The build emits a PDF.js asset manifest so CMaps and standard fonts are precached along with the worker and viewer shell. Navigation falls back to the cached shell. The application shows online/offline state, and a newly installed worker waits for an explicit user-approved update so an open document is not reloaded unexpectedly. The update check is asynchronous and never blocks document editing.
+The service worker must use the deployed static-host base path correctly; asset URLs are generated from the deployed base path, not assumed to be rooted at `/`. The build emits a PDF.js asset manifest so CMaps and standard fonts are precached along with the worker and viewer shell. Navigation falls back to the cached shell. The application shows online/offline state, and a newly installed worker waits for an explicit user-approved update so an open document is not reloaded unexpectedly. The update check is asynchronous and never blocks document editing.
 
 Core document flows must work after a successful first online load with the network disabled. Remote fonts, remote scripts, CDN PDF.js, runtime package fetches, and API calls are not allowed in the offline path. Source PDFs, temporary WASM state, and exports remain in memory or are explicitly saved by the user; they are not silently uploaded. The optional IndexedDB store contains only user-saved visual signatures, never PDF bytes; the UI provides an explicit clear action. Browser installation prompts are progressive enhancement, and download remains the portable export path for browsers without install support.
 
@@ -279,6 +279,6 @@ Imported PDFs are untrusted data. The native core catches parser panics, bounds 
 
 PDF.js is vendored from the pinned 4.2.67 ESM package and loaded from the same origin. Imported PDF scripting is disabled at both the parser/rendering configuration and annotation-layer configuration. Annotation links go through a local safe link service: only http/https links are exposed, with a new-tab target and noopener/noreferrer/nofollow; invalid or executable schemes are inert and no URL is fetched automatically.
 
-The static shell carries a same-origin Content Security Policy with object/plugin execution disabled, same-origin scripts and connections, local workers, and local/data/blob rendering sources required by the viewer. Header-only policies such as frame-ancestors cannot be supplied by a plain GitHub Pages static artifact and remain a deployment limitation.
+The static shell carries a same-origin Content Security Policy with object/plugin execution disabled, same-origin scripts and connections, local workers, and local/data/blob rendering sources required by the viewer. Header-only policies such as frame-ancestors cannot be supplied by a plain static-host artifact and remain a deployment limitation.
 
 The service worker handles only same-origin GET requests, precaches only generated application assets, uses versioned cache names, and never caches user-selected PDF bytes. Performance marks stay in the local Performance API and are not transmitted.

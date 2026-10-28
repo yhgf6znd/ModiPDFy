@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,8 +21,5 @@ if (!existsSync(wasmEntry)) {
 rmSync(outputDirectory, { force: true, recursive: true });
 mkdirSync(outputDirectory, { recursive: true });
 cpSync(sourceDirectory, outputDirectory, { recursive: true });
-
-// GitHub Pages serves files directly, and this marker prevents Jekyll from transforming them.
-writeFileSync(resolve(outputDirectory, ".nojekyll"), "", "utf8");
 
 console.log(`Static web build written to ${outputDirectory} for public base path ${publicBasePath} (relative asset URLs).`);

@@ -2,7 +2,7 @@
 
 Date: 2026-10-25
 
-This report covers the current ModiPDFy annotation milestone and the security, reliability, and performance review performed in the local repository. Measurements are from a headless Chromium run using the pinned Playwright 1.55.1 dependency, a one-page generated PDF fixture, localhost static hosting under a GitHub Pages-style /modipdfy/ path, and an offline browser context. They are smoke measurements, not broad device benchmarks.
+This report covers the current ModiPDFy annotation milestone and the security, reliability, and performance review performed in the local repository. Measurements are from a headless Chromium run using the pinned Playwright 1.55.1 dependency, a one-page generated PDF fixture, localhost static hosting under a static-host-style /modipdfy/ path, and an offline browser context. They are smoke measurements, not broad device benchmarks.
 
 ## Features verified
 
@@ -11,7 +11,7 @@ This report covers the current ModiPDFy annotation milestone and the security, r
 - Rust/WASM loading, page inspection, and native Text, Ink, Highlight, and visual Signature-as-Ink annotations.
 - Annotation selection, movement, resizing where supported, deletion, undo/redo, and export/reopen validation.
 - Object-preserving export; the automated fixture checks unchanged source bytes, page structure, unaffected-page pixels, and rendered annotation regions with Poppler and Ghostscript.
-- Static PWA shell, GitHub Pages subpath resolution, service-worker precache, offline reload, offline open, annotation, and export.
+- Static PWA shell, static-host subpath resolution, service-worker precache, offline reload, offline open, annotation, and export.
 - Unsaved-change warning on browser refresh and cleanup checks across five repeated document loads. Failed PDF replacement preserves the currently open viewer document, and shared page `/Annots` arrays use copy-on-write when an annotation is added.
 
 ## Tests executed
@@ -29,7 +29,7 @@ This report covers the current ModiPDFy annotation milestone and the security, r
 - Embedded PDF JavaScript/actions: PDF.js is configured with isEvalSupported=false; annotation rendering passes enableScripting=false and hasJSActions=false. The application does not execute imported PDF scripts.
 - External links: imported link annotations are handled by a small local link service. Only http and https URLs become links, they open in a new tab with noopener/noreferrer/nofollow, and executable or invalid schemes remain inert. Links are not fetched automatically.
 - HTML injection: document-derived names, warnings, and annotation text use textContent or form values. No document-derived HTML is inserted.
-- CSP: the static shell includes a same-origin CSP with no object/plugin execution, same-origin scripts/connectivity, local workers, and no remote fonts or images. GitHub Pages cannot provide a response-header frame-ancestors policy, so clickjacking protection from headers remains a deployment limitation.
+- CSP: the static shell includes a same-origin CSP with no object/plugin execution, same-origin scripts/connectivity, local workers, and no remote fonts or images. A plain static host cannot provide a response-header frame-ancestors policy, so clickjacking protection from headers remains a deployment limitation.
 - Resource limits: the Rust core limits input bytes, decompressed streams, pages, objects, annotation payloads, and output bytes. The browser additionally limits input to 128 MiB, editor pages to 2,000, and canvas backing allocation to 16,777,216 pixels.
 - Service worker: only same-origin GET requests are handled; user PDFs are never added to Cache Storage. The cache is versioned and the offline path was verified with the server stopped.
 - Dependencies: npm audit and cargo audit are clean for the locked graphs. A deterministic CycloneDX inventory is checked in at docs/sbom.json. Cargo dependency licenses were collected through cargo metadata.
@@ -52,7 +52,7 @@ Optimizations made in this review are limit-based and measured against failure r
 - PDF parsing remains an in-memory operation. Compressed-stream, object-count, output-size, and page-count limits reduce exposure but do not provide a CPU time budget or fuzzing guarantee.
 - Export rewrites edited PDFs through lopdf and rejects edits to encrypted or signed documents. Untouched encrypted/signed bytes can be returned, but the application does not claim cryptographic validity. Moving or editing an imported supported annotation reconstructs the modeled fields and may not retain vendor-specific dictionary entries; in-place native annotation updates remain a future hardening task.
 - Native Acrobat/Reader testing was not rerun in this audit. The repository contains historical local Wine/Acrobat notes, but native Windows/macOS Acrobat coverage and complete visual regression across readers remain open. No document was uploaded to Adobe or another remote service.
-- The current test profile is Chromium-only for automated Playwright execution; Firefox and deployed GitHub Pages verification remain environment-specific follow-up work.
+- The current test profile is Chromium-only for automated Playwright execution; Firefox and deployed Cloudflare Pages verification remain environment-specific follow-up work.
 
 ## Unresolved issues
 

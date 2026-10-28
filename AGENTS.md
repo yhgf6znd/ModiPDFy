@@ -71,7 +71,7 @@ Before finishing:
 - Run formatting, linting, unit tests, integration tests, and the browser smoke suite that applies to the change.
 - Verify that `cargo test` for the native Rust workspace remains independent of the WASM toolchain.
 - Verify that a modified document can be exported and reopened by the application and by an independent PDF reader when export behavior changed.
-- Check that service-worker caching still works with the GitHub Pages base path and that no network request is needed for the offline path.
+- Check that service-worker caching still works with the deployed static-host base path and that no network request is needed for the offline path.
 - Report remaining technical risks instead of hiding them behind best-effort behavior.
 
 ## Security and privacy review checklist
